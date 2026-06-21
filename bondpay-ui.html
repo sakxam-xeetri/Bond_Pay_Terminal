@@ -989,6 +989,155 @@
             100% { transform: scale(1.3); opacity: 0; }
         }
 
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* ── Connection Sync Overlay ────────────────────────────── */
+        .sync-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--white);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: opacity 0.4s ease;
+        }
+
+        .sync-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sync-overlay.hidden {
+            display: none;
+        }
+
+        .sync-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--gray-200);
+            border-top-color: var(--black);
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 32px;
+        }
+
+        .sync-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 40px;
+        }
+
+        .sync-logo .logo-mark {
+            width: 32px;
+            height: 32px;
+        }
+
+        .sync-logo .logo-text {
+            font-size: 1.2rem;
+        }
+
+        .sync-status-text {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .sync-sub-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .sync-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 240px;
+        }
+
+        .sync-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .sync-step.active {
+            color: var(--text-primary);
+        }
+
+        .sync-step.done {
+            color: var(--text-primary);
+        }
+
+        .sync-step-icon {
+            width: 20px;
+            height: 20px;
+            border: 1.5px solid var(--gray-300);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .sync-step.active .sync-step-icon {
+            border-color: var(--black);
+            background: var(--white);
+        }
+
+        .sync-step.active .sync-step-icon::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--black);
+            animation: pulse-dot 1s infinite;
+        }
+
+        .sync-step.done .sync-step-icon {
+            border-color: var(--black);
+            background: var(--black);
+        }
+
+        .sync-step.done .sync-step-icon::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .sync-step.error .sync-step-icon {
+            border-color: var(--black);
+            background: var(--white);
+        }
+
+        .sync-step.error .sync-step-icon::after {
+            content: '!';
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--black);
+        }
+
         /* ── Mobile Sidebar Toggle ──────────────────────────────── */
         .mobile-sidebar-toggle {
             display: none;
@@ -1369,6 +1518,37 @@
         </svg>
     </button>
 
+    <!-- Connection Sync Overlay -->
+    <div class="sync-overlay hidden" id="sync-overlay">
+        <div class="sync-logo">
+            <div class="logo-mark">
+                <svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18L19.18 8 12 11.82 4.82 8 12 4.18z" fill="white"/></svg>
+            </div>
+            <span class="logo-text" style="font-size:1.2rem;font-weight:800;letter-spacing:-0.5px">BondPay</span>
+        </div>
+        <div class="sync-spinner" id="sync-spinner"></div>
+        <div class="sync-status-text" id="sync-status">Connecting to Terminal</div>
+        <div class="sync-sub-text" id="sync-sub">Please wait while we sync with your hardware</div>
+        <div class="sync-steps">
+            <div class="sync-step" id="step-connect">
+                <div class="sync-step-icon"></div>
+                <span>Connecting to ESP</span>
+            </div>
+            <div class="sync-step" id="step-time">
+                <div class="sync-step-icon"></div>
+                <span>Syncing Time</span>
+            </div>
+            <div class="sync-step" id="step-data">
+                <div class="sync-step-icon"></div>
+                <span>Loading Cards & Transactions</span>
+            </div>
+            <div class="sync-step" id="step-ready">
+                <div class="sync-step-icon"></div>
+                <span>Terminal Ready</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Overlay Modal -->
     <div id="overlay" class="overlay">
         <div class="modal" id="modal-content"></div>
@@ -1386,13 +1566,84 @@
         let pollingTimer = null;
 
         // ── Init ───────────────────────────────────────────────
+        let sameOriginMode = false;  // true when served directly from ESP
+        let autoConnectAttempts = 0;
+        let dashRefreshTimer = null;
+        let timeSyncTimer = null;
+        let showingSyncOverlay = false;
+
+        // ── Sync Overlay Helpers ───────────────────────────────
+        function showSyncOverlay() {
+            const el = document.getElementById('sync-overlay');
+            el.classList.remove('hidden', 'fade-out');
+            el.style.display = 'flex';
+            showingSyncOverlay = true;
+            // Reset steps
+            ['step-connect','step-time','step-data','step-ready'].forEach(id => {
+                const s = document.getElementById(id);
+                s.className = 'sync-step';
+            });
+            setSyncStep('step-connect', 'active');
+            document.getElementById('sync-status').innerText = 'Connecting to Terminal';
+            document.getElementById('sync-sub').innerText = 'Please wait while we sync with your hardware';
+            document.getElementById('sync-spinner').style.display = '';
+        }
+
+        function setSyncStep(stepId, state) {
+            document.getElementById(stepId).className = 'sync-step ' + state;
+        }
+
+        function setSyncStatus(text, sub) {
+            document.getElementById('sync-status').innerText = text;
+            if (sub) document.getElementById('sync-sub').innerText = sub;
+        }
+
+        function hideSyncOverlay() {
+            if (!showingSyncOverlay) return;
+            const el = document.getElementById('sync-overlay');
+            el.classList.add('fade-out');
+            setTimeout(() => {
+                el.classList.add('hidden');
+                showingSyncOverlay = false;
+            }, 400);
+        }
+
+        function hideSyncOverlayInstant() {
+            const el = document.getElementById('sync-overlay');
+            el.classList.add('hidden');
+            showingSyncOverlay = false;
+        }
+
         window.onload = function () {
             updateClock();
             setInterval(updateClock, 1000);
 
-            const savedIP = localStorage.getItem('bondpay_esp_ip');
-            if (savedIP) {
-                document.getElementById('esp-ip').value = savedIP;
+            // ── Smart Auto-Detection ──────────────────────────────
+            // If the page is served from the ESP itself (not localhost/file),
+            // use relative URLs — no IP field needed at all
+            const host = window.location.hostname;
+            const isLocalFile = window.location.protocol === 'file:';
+            const isLocalhost = (host === 'localhost' || host === '127.0.0.1' || host === '');
+
+            if (!isLocalFile && !isLocalhost) {
+                // Page is served from the ESP directly — use same-origin
+                sameOriginMode = true;
+                API_BASE = '';  // relative URLs
+                document.getElementById('esp-ip').value = host;
+                console.log('[BondPay] Same-origin mode — ESP at ' + host);
+                attemptConnect(true);
+            } else {
+                // Page is opened locally — try saved IP or field value
+                const savedIP = localStorage.getItem('bondpay_esp_ip');
+                if (savedIP) {
+                    document.getElementById('esp-ip').value = savedIP;
+                }
+                // Auto-connect on page load if we have an IP
+                const ip = document.getElementById('esp-ip').value.trim();
+                if (ip) {
+                    console.log('[BondPay] Auto-connecting to saved IP: ' + ip);
+                    attemptConnect(false);
+                }
             }
         };
 
@@ -1413,41 +1664,180 @@
         }
 
         // ── Connection ─────────────────────────────────────────
-        function connectESP() {
+        // attemptConnect handles both auto and manual connection
+        function attemptConnect(silent) {
             const ip = document.getElementById('esp-ip').value.trim();
-            if (!ip) return toast('Enter ESP IP address', 'er');
 
-            API_BASE = 'http://' + ip;
-            localStorage.setItem('bondpay_esp_ip', ip);
+            if (sameOriginMode) {
+                API_BASE = '';
+            } else {
+                if (!ip) {
+                    if (!silent) toast('Enter ESP IP address', 'er');
+                    return;
+                }
+                API_BASE = 'http://' + ip;
+                localStorage.setItem('bondpay_esp_ip', ip);
+            }
+
+            // Show sync overlay on first real connection attempt
+            const isFirstAttempt = autoConnectAttempts === 0;
+            if (isFirstAttempt) {
+                showSyncOverlay();
+            }
 
             document.getElementById('conn-text').innerText = 'Connecting';
             document.getElementById('conn-text').style.color = 'var(--text-muted)';
+
+            if (showingSyncOverlay) {
+                setSyncStep('step-connect', 'active');
+                setSyncStatus('Connecting to Terminal', 'Establishing communication with ESP hardware');
+            }
 
             fetchWithTimeout(API_BASE + '/api/status', {}, 5000)
                 .then(r => r.json())
                 .then(data => {
                     connected = true;
+                    autoConnectAttempts = 0;
                     document.getElementById('conn-dot').classList.add('ok');
                     document.getElementById('conn-text').innerText = 'Online';
                     document.getElementById('conn-text').style.color = 'var(--text-primary)';
 
-                    toast('Connected to BondPay Terminal', 'ok');
-                    syncTime();
-                    loadData();
-                    startPolling();
+                    if (showingSyncOverlay) {
+                        // Step 1 done → Step 2: time sync
+                        setSyncStep('step-connect', 'done');
+                        setSyncStep('step-time', 'active');
+                        setSyncStatus('Syncing Time', 'Synchronizing clock with terminal');
+                    }
 
-                    setInterval(function () {
-                        if (currentTab === 'dash' && connected) loadData();
-                    }, 6000);
+                    // Sync time
+                    const epoch = Math.floor(Date.now() / 1000);
+                    return fetchWithTimeout(API_BASE + '/api/time?epoch=' + epoch, { method: 'POST' }, 5000)
+                        .catch(function() {})
+                        .then(function() {
+                            if (showingSyncOverlay) {
+                                // Step 2 done → Step 3: loading data
+                                setSyncStep('step-time', 'done');
+                                setSyncStep('step-data', 'active');
+                                setSyncStatus('Loading Data', 'Fetching cards, transactions and status');
+                            }
+
+                            // Load all data with promises
+                            const p1 = fetchWithTimeout(API_BASE + '/api/cards', {}, 10000)
+                                .then(r => r.json())
+                                .then(cards => {
+                                    document.getElementById('s-cards').innerText = cards.length;
+                                    let total = 0;
+                                    cards.forEach(c => total += parseFloat(c.balance || 0));
+                                    document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
+                                    renderCardsSidebar(cards);
+                                })
+                                .catch(function() {});
+
+                            const p2 = fetchWithTimeout(API_BASE + '/api/transactions', {}, 10000)
+                                .then(r => r.json())
+                                .then(txns => {
+                                    allTransactions = txns;
+                                    document.getElementById('s-txn-count').innerText = txns.length;
+                                    renderTransactions(txns);
+                                    renderRecent(txns);
+                                })
+                                .catch(function() {});
+
+                            const p3 = fetchWithTimeout(API_BASE + '/api/status', {}, 5000)
+                                .then(r => r.json())
+                                .then(d => {
+                                    document.getElementById('s-sync').innerText = d.pendingSyncCount || 0;
+                                    document.getElementById('info-heap').innerText = Math.round(d.freeHeap / 1024) + ' KB';
+                                    document.getElementById('info-ip').innerText = d.ip || '--';
+                                    document.getElementById('info-mode').innerText = d.mode || 'READY';
+                                    const s = d.uptime / 1000;
+                                    const h = Math.floor(s / 3600);
+                                    const m = Math.floor((s % 3600) / 60);
+                                    document.getElementById('info-uptime').innerText = h + 'h ' + m + 'm';
+                                })
+                                .catch(function() {});
+
+                            return Promise.all([p1, p2, p3]);
+                        })
+                        .then(function() {
+                            if (showingSyncOverlay) {
+                                // Step 3 done → Step 4: ready!
+                                setSyncStep('step-data', 'done');
+                                setSyncStep('step-ready', 'done');
+                                setSyncStatus('Terminal Ready', 'All systems operational');
+                                document.getElementById('sync-spinner').style.display = 'none';
+
+                                // Fade out after a brief moment
+                                setTimeout(hideSyncOverlay, 800);
+                            }
+
+                            if (!silent) toast('Connected to BondPay Terminal', 'ok');
+
+                            // Start polling for modal states
+                            startPolling();
+
+                            // Periodic dashboard refresh
+                            if (!dashRefreshTimer) {
+                                dashRefreshTimer = setInterval(function () {
+                                    if (currentTab === 'dash' && connected) loadData();
+                                }, 6000);
+                            }
+
+                            // Periodic time sync every 5 minutes
+                            if (!timeSyncTimer) {
+                                timeSyncTimer = setInterval(function () {
+                                    if (connected) syncTime();
+                                }, 300000);
+                            }
+                        });
                 })
                 .catch(err => {
                     connected = false;
                     document.getElementById('conn-dot').classList.remove('ok');
-                    document.getElementById('conn-text').innerText = 'Failed';
-                    document.getElementById('conn-text').style.color = 'var(--text-muted)';
-                    toast('Connection failed: ' + err.message, 'er');
-                    console.error('Connection error:', err);
+
+                    autoConnectAttempts++;
+                    // Auto-retry up to 3 times with backoff
+                    if (autoConnectAttempts <= 3) {
+                        const delay = autoConnectAttempts * 2000;
+                        document.getElementById('conn-text').innerText = 'Retry ' + autoConnectAttempts + '/3';
+                        document.getElementById('conn-text').style.color = 'var(--text-muted)';
+
+                        if (showingSyncOverlay) {
+                            setSyncStatus('Retrying (' + autoConnectAttempts + '/3)', 'Connection attempt failed, trying again...');
+                        }
+
+                        console.log('[BondPay] Retry ' + autoConnectAttempts + ' in ' + delay + 'ms');
+                        setTimeout(() => attemptConnect(true), delay);
+                    } else {
+                        document.getElementById('conn-text').innerText = 'Offline';
+                        document.getElementById('conn-text').style.color = 'var(--text-muted)';
+
+                        if (showingSyncOverlay) {
+                            setSyncStep('step-connect', 'error');
+                            setSyncStatus('Connection Failed', 'Could not reach ESP — check WiFi and IP address');
+                            document.getElementById('sync-spinner').style.display = 'none';
+                            // Auto-dismiss after 3 seconds
+                            setTimeout(hideSyncOverlay, 3000);
+                        }
+
+                        if (!silent) toast('Connection failed: ' + err.message, 'er');
+                        console.error('[BondPay] Connection failed after retries:', err);
+
+                        // Keep trying in background every 10 seconds
+                        setTimeout(function () {
+                            if (!connected) {
+                                autoConnectAttempts = 0;
+                                attemptConnect(true);
+                            }
+                        }, 10000);
+                    }
                 });
+        }
+
+        // Manual connect button
+        function connectESP() {
+            autoConnectAttempts = 0;
+            attemptConnect(false);
         }
 
         function api(path, method) {
