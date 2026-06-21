@@ -8,11 +8,11 @@
 // The web UI HTML file is separate and communicates via HTTP API.
 // This header is kept for any shared web utilities if needed.
 
-// CORS headers helper — allows browser JS from any origin to call our API
 inline void sendCORS(ESP8266WebServer &srv) {
   srv.sendHeader("Access-Control-Allow-Origin", "*");
   srv.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   srv.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+  srv.sendHeader("Access-Control-Allow-Private-Network", "true");
   srv.sendHeader("Cache-Control", "no-cache");
 }
 

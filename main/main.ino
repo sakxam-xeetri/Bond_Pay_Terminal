@@ -90,12 +90,9 @@ void connectToWiFi() {
   lcd.setCursor(0, 0); lcd.print("Connecting WiFi");
   lcd.setCursor(0, 1); lcd.print(WIFI_SSID);
 
-  WiFi.persistent(false);
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  delay(100);
-
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   // Wait up to 20 seconds for connection

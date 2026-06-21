@@ -1,805 +1,1373 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BondPay Terminal</title>
+    <meta name="description" content="BondPay — Professional offline RFID payment terminal management system">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <style>
+        /* ═══════════════════════════════════════════════════════════
+           DESIGN SYSTEM — Monochrome Professional
+           ═══════════════════════════════════════════════════════════ */
         :root {
-            --bg: #06080f;
-            --bg2: #0c1020;
-            --card: #111730;
-            --card-hover: #151d3a;
-            --bdr: rgba(255,255,255,0.06);
-            --bdr-h: rgba(255,255,255,0.12);
-            --pri: #00d2ff;
-            --pri-dim: rgba(0,210,255,0.12);
-            --pri-glow: rgba(0,210,255,0.25);
-            --prih: #00b4db;
-            --suc: #10b981;
-            --suc-dim: rgba(16,185,129,0.12);
-            --warn: #f59e0b;
-            --err: #ef4444;
-            --err-dim: rgba(239,68,68,0.12);
-            --txt: #f0f2f5;
-            --txt2: #c4c8d4;
-            --dim: #6b7280;
-            --glass: rgba(17,23,48,0.85);
-            --radius: 12px;
-            --radius-sm: 8px;
+            --white: #ffffff;
+            --off-white: #fafafa;
+            --gray-50: #f5f5f5;
+            --gray-100: #eeeeee;
+            --gray-200: #e0e0e0;
+            --gray-300: #cccccc;
+            --gray-400: #aaaaaa;
+            --gray-500: #888888;
+            --gray-600: #666666;
+            --gray-700: #444444;
+            --gray-800: #2a2a2a;
+            --gray-900: #1a1a1a;
+            --black: #000000;
+
+            --bg: var(--white);
+            --bg-secondary: var(--off-white);
+            --surface: var(--white);
+            --surface-hover: var(--gray-50);
+            --border: var(--gray-200);
+            --border-strong: var(--gray-300);
+            --text-primary: var(--black);
+            --text-secondary: var(--gray-600);
+            --text-muted: var(--gray-400);
+
+            --success: #1a1a1a;
+            --success-bg: #f0f0f0;
+            --danger: #000000;
+            --danger-bg: #f5f5f5;
+
+            --sidebar-width: 380px;
+            --header-h: 56px;
         }
+
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
+
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background: var(--bg);
-            color: var(--txt);
+            color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* ── Connection Bar ──────────────────────────────────── */
-        .conn-bar {
-            background: var(--bg2);
-            border-bottom: 1px solid var(--bdr);
-            padding: 0.6rem 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-        .conn-bar label {
-            font-size: 0.82rem;
-            color: var(--dim);
-            font-weight: 500;
-        }
-        .conn-bar input {
-            background: var(--card);
-            border: 1px solid var(--bdr);
-            border-radius: 6px;
-            padding: 0.45rem 0.75rem;
-            color: var(--txt);
-            font-size: 0.88rem;
-            font-family: 'Inter', monospace;
-            width: 200px;
-            transition: border-color 0.2s;
-        }
-        .conn-bar input:focus {
-            outline: none;
-            border-color: var(--pri);
-        }
-        .conn-bar .conn-btn {
-            background: var(--pri);
-            color: #000;
-            border: none;
-            padding: 0.45rem 1rem;
-            border-radius: 6px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            transition: background 0.2s;
-        }
-        .conn-bar .conn-btn:hover { background: var(--prih); }
-        .conn-status {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.82rem;
-            margin-left: auto;
-        }
-        .conn-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--err);
-            transition: background 0.3s, box-shadow 0.3s;
-        }
-        .conn-dot.ok {
-            background: var(--suc);
-            box-shadow: 0 0 8px var(--suc);
-            animation: pulse 2s infinite;
-        }
+        /* ── Scrollbar ─────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--gray-300); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
 
-        /* ── Header ──────────────────────────────────────────── */
+        /* ── Header ────────────────────────────────────────────── */
         header {
-            position: sticky;
+            position: fixed;
             top: 0;
-            z-index: 50;
-            background: var(--glass);
-            -webkit-backdrop-filter: blur(14px);
-            backdrop-filter: blur(14px);
-            border-bottom: 1px solid var(--bdr);
-            padding: 0.9rem 1.5rem;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            height: var(--header-h);
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
         }
+
         .logo {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 10px;
         }
-        .logo-icon {
-            width: 32px;
-            height: 32px;
-            background: var(--pri-dim);
-            border: 1px solid rgba(0,210,255,0.2);
-            border-radius: 8px;
+
+        .logo-mark {
+            width: 28px;
+            height: 28px;
+            background: var(--black);
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .logo-icon svg {
-            width: 18px;
-            height: 18px;
-            fill: var(--pri);
-        }
-        .logo-text {
-            font-size: 1.2rem;
-            font-weight: 800;
-            letter-spacing: 0.3px;
-            background: linear-gradient(135deg, #ffffff 30%, var(--pri) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .header-clock {
-            font-size: 0.88rem;
-            color: var(--txt2);
-            font-weight: 500;
-            font-variant-numeric: tabular-nums;
-        }
 
-        /* ── Navigation Tabs ─────────────────────────────────── */
-        .nav-tabs {
-            display: flex;
-            gap: 2px;
-            background: var(--bg2);
-            padding: 6px 8px;
-            overflow-x: auto;
-            border-bottom: 1px solid var(--bdr);
-            -webkit-overflow-scrolling: touch;
-        }
-        .nav-tabs button {
-            background: none;
-            border: none;
-            color: var(--dim);
-            padding: 10px 16px;
-            font-size: 0.88rem;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-            white-space: nowrap;
-            transition: all 0.2s;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .nav-tabs button:hover {
-            color: var(--txt2);
-            background: rgba(255,255,255,0.03);
-        }
-        .nav-tabs button.active {
-            background: var(--pri-dim);
-            color: var(--pri);
-            border: 1px solid rgba(0,210,255,0.15);
-        }
-        .nav-tabs button svg {
+        .logo-mark svg {
             width: 16px;
             height: 16px;
+            fill: var(--white);
+        }
+
+        .logo-text {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--black);
+            text-transform: uppercase;
+        }
+
+        .logo-tag {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-left: 4px;
+            padding: 2px 6px;
+            border: 1px solid var(--border);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .conn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .conn-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+
+        .conn-dot.ok {
+            background: var(--black);
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+            animation: pulse-dot 2s infinite;
+        }
+
+        .header-clock {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── Layout Shell ──────────────────────────────────────── */
+        .app-shell {
+            margin-top: var(--header-h);
+            display: flex;
+            min-height: calc(100vh - var(--header-h));
+        }
+
+        /* ── Sidebar (Payment + Card) ──────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-width);
+            border-right: 1px solid var(--border);
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+            height: calc(100vh - var(--header-h));
+            position: sticky;
+            top: var(--header-h);
+        }
+
+        .sidebar-section {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+            flex: 1;
+        }
+
+        .section-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* ── Payment Module ────────────────────────────────────── */
+        .pay-amount-display {
+            text-align: center;
+            padding: 20px 0 24px;
+        }
+
+        .pay-currency {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .pay-amount-input-wrap {
+            position: relative;
+        }
+
+        .pay-amount-input-wrap input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--black);
+            font-size: 2.4rem;
+            font-weight: 800;
+            text-align: center;
+            color: var(--black);
+            padding: 8px 0;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -1px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .pay-amount-input-wrap input::placeholder {
+            color: var(--gray-300);
+        }
+
+        .pay-amount-input-wrap input:focus {
+            border-bottom-color: var(--black);
+        }
+
+        .pay-btn {
+            width: 100%;
+            background: var(--black);
+            color: var(--white);
+            border: none;
+            padding: 14px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: opacity 0.15s;
+        }
+
+        .pay-btn:hover {
+            opacity: 0.85;
+        }
+
+        .pay-btn:active {
+            opacity: 0.7;
+        }
+
+        /* ── Quick Amounts ─────────────────────────────────────── */
+        .quick-amounts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .quick-amt {
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            transition: all 0.15s;
+            color: var(--text-primary);
+        }
+
+        .quick-amt:hover {
+            background: var(--black);
+            color: var(--white);
+            border-color: var(--black);
+        }
+
+        /* ── Card List (sidebar) ───────────────────────────────── */
+        .card-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-100);
+            transition: opacity 0.15s;
+        }
+
+        .card-item:last-child {
+            border-bottom: none;
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .card-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-uid {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            font-family: 'SF Mono', 'Consolas', monospace;
+            letter-spacing: 0.3px;
+        }
+
+        .card-balance {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: right;
+        }
+
+        .card-balance-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .card-action-btn {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+
+        .card-action-btn:hover {
+            background: var(--black);
+            color: var(--white);
+            border-color: var(--black);
+        }
+
+        .card-action-btn.del:hover {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px 0;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 400;
+        }
+
+        /* ── Main Content ──────────────────────────────────────── */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            overflow-y: auto;
+        }
+
+        /* ── Tab Navigation ────────────────────────────────────── */
+        .main-nav {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .main-nav button {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            padding: 16px 24px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .main-nav button:hover {
+            color: var(--text-secondary);
+        }
+
+        .main-nav button.active {
+            color: var(--black);
+            border-bottom-color: var(--black);
+        }
+
+        .main-nav button svg {
+            width: 14px;
+            height: 14px;
             stroke: currentColor;
             stroke-width: 2;
             fill: none;
         }
 
-        /* ── Content Panels ──────────────────────────────────── */
+        /* ── Panels ────────────────────────────────────────────── */
         .panel {
             display: none;
-            padding: 1.5rem;
-            max-width: 1100px;
-            margin: 0 auto;
-            animation: fadeIn 0.3s ease;
-        }
-        .panel.active { display: block; }
-        .page-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin-bottom: 0.3rem;
-            letter-spacing: -0.3px;
-        }
-        .page-sub {
-            color: var(--dim);
-            font-size: 0.92rem;
-            margin-bottom: 1.8rem;
+            padding: 32px;
+            animation: panelIn 0.25s ease;
         }
 
-        /* ── Stat Cards ──────────────────────────────────────── */
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.8rem;
+        .panel.active {
+            display: block;
         }
-        .stat-card {
-            background: var(--card);
-            border: 1px solid var(--bdr);
-            border-radius: var(--radius);
-            padding: 1.3rem 1.4rem;
-            position: relative;
-            overflow: hidden;
-            transition: border-color 0.2s, transform 0.15s;
+
+        .panel-header {
+            margin-bottom: 32px;
         }
-        .stat-card:hover {
-            border-color: var(--bdr-h);
-            transform: translateY(-1px);
-        }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 3px;
-            height: 100%;
-            background: var(--pri);
-        }
-        .stat-card.suc::before { background: var(--suc); }
-        .stat-card.err::before { background: var(--err); }
-        .stat-label {
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--dim);
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            margin-bottom: 0.5rem;
-        }
-        .stat-value {
-            font-size: 1.8rem;
+
+        .panel-title {
+            font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: -0.5px;
+            color: var(--black);
+            margin-bottom: 4px;
         }
 
-        /* ── Form Cards ──────────────────────────────────────── */
-        .content-grid {
+        .panel-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ── Stat Row ──────────────────────────────────────────── */
+        .stat-row {
             display: grid;
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            margin-bottom: 32px;
         }
-        @media (min-width: 700px) {
-            .content-grid.two-col {
-                grid-template-columns: 1.6fr 1fr;
-            }
+
+        .stat-cell {
+            background: var(--white);
+            padding: 20px 24px;
+            position: relative;
         }
-        .form-card {
-            background: var(--card);
-            border: 1px solid var(--bdr);
-            border-radius: var(--radius);
-            padding: 1.5rem;
+
+        .stat-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
         }
-        .form-card h2 {
-            font-size: 1.05rem;
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--black);
+        }
+
+        .stat-value.mono {
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        /* ── Tables ────────────────────────────────────────────── */
+        .table-container {
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th {
+            background: var(--gray-50);
+            color: var(--text-muted);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.68rem;
             font-weight: 700;
-            margin-bottom: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
         }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--gray-50);
+        }
+
+        .mono {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.78rem;
+            letter-spacing: 0.3px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-ok {
+            background: var(--gray-50);
+            color: var(--black);
+            border: 1px solid var(--gray-200);
+        }
+
+        .badge-err {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        /* ── Form Controls ─────────────────────────────────────── */
+        .form-section {
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .form-section-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            color: var(--black);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-grid.single {
+            grid-template-columns: 1fr;
+        }
+
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 16px;
         }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
         .form-label {
             display: block;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--dim);
-            margin-bottom: 0.4rem;
-        }
-        .form-input {
-            width: 100%;
-            background: rgba(6,8,15,0.6);
-            border: 1px solid var(--bdr);
-            border-radius: var(--radius-sm);
-            padding: 0.7rem 0.9rem;
-            color: var(--txt);
-            font-size: 0.92rem;
-            font-family: 'Inter', sans-serif;
-            transition: border-color 0.2s;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: var(--pri);
-            box-shadow: 0 0 0 3px var(--pri-dim);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
         }
 
-        /* ── Buttons ─────────────────────────────────────────── */
+        .form-input {
+            width: 100%;
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.15s;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--black);
+        }
+
+        .form-input::placeholder {
+            color: var(--gray-300);
+        }
+
+        /* ── Buttons ───────────────────────────────────────────── */
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.4rem;
-            padding: 0.7rem 1.3rem;
-            font-size: 0.88rem;
-            font-weight: 600;
-            border-radius: var(--radius-sm);
+            gap: 6px;
+            padding: 10px 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
             border: none;
             cursor: pointer;
             font-family: 'Inter', sans-serif;
-            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.15s;
         }
-        .btn-primary {
-            background: var(--pri);
-            color: #000;
+
+        .btn-black {
+            background: var(--black);
+            color: var(--white);
         }
-        .btn-primary:hover { background: var(--prih); }
-        .btn-success {
-            background: var(--suc);
-            color: #fff;
+
+        .btn-black:hover {
+            opacity: 0.85;
         }
-        .btn-danger {
-            background: var(--err);
-            color: #fff;
-        }
-        .btn-danger:hover { opacity: 0.9; }
+
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--bdr);
-            color: var(--txt);
-        }
-        .btn-outline:hover { background: rgba(255,255,255,0.04); }
-        .btn-full { width: 100%; }
-        .btn-sm {
-            padding: 0.35rem 0.7rem;
-            font-size: 0.78rem;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
         }
 
-        /* ── Tables ──────────────────────────────────────────── */
-        .table-wrap {
-            overflow-x: auto;
-            border: 1px solid var(--bdr);
-            border-radius: var(--radius);
+        .btn-outline:hover {
+            background: var(--gray-50);
         }
-        table {
+
+        .btn-danger {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .btn-danger:hover {
+            opacity: 0.85;
+        }
+
+        .btn-full {
             width: 100%;
-            border-collapse: collapse;
-            font-size: 0.88rem;
-        }
-        th {
-            background: rgba(255,255,255,0.02);
-            color: var(--dim);
-            padding: 0.8rem 1rem;
-            text-align: left;
-            font-size: 0.78rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            border-bottom: 1px solid var(--bdr);
-        }
-        td {
-            padding: 0.8rem 1rem;
-            border-bottom: 1px solid var(--bdr);
-        }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(255,255,255,0.015); }
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .badge-ok {
-            background: var(--suc-dim);
-            color: var(--suc);
-        }
-        .badge-err {
-            background: var(--err-dim);
-            color: var(--err);
         }
 
-        /* ── Overlay/Modal ───────────────────────────────────── */
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.68rem;
+        }
+
+        /* ── Search ─────────────────────────────────────────────── */
+        .search-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .search-row input {
+            flex: 1;
+        }
+
+        /* ── Settings Layout ───────────────────────────────────── */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .settings-grid.full {
+            grid-template-columns: 1fr;
+        }
+
+        /* ── Connection Card ───────────────────────────────────── */
+        .conn-card {
+            border: 1px solid var(--border);
+            padding: 24px;
+            background: var(--white);
+            margin-bottom: 24px;
+        }
+
+        .conn-card-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .conn-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .conn-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        /* ── Info Grid ─────────────────────────────────────────── */
+        .info-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 0.82rem;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-item-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .info-item-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        /* ── Danger Zone ───────────────────────────────────────── */
+        .danger-section {
+            border: 1px solid var(--border);
+            padding: 24px;
+            background: var(--white);
+        }
+
+        .danger-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .danger-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .danger-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* ── Card Registration Form (sidebar) ──────────────────── */
+        .add-card-toggle {
+            width: 100%;
+            background: none;
+            border: 1px dashed var(--gray-300);
+            padding: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.15s;
+            margin-top: 12px;
+        }
+
+        .add-card-toggle:hover {
+            border-color: var(--black);
+            color: var(--black);
+        }
+
+        .add-card-form {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-100);
+        }
+
+        .add-card-form.open {
+            display: block;
+        }
+
+        .add-card-form .form-group {
+            margin-bottom: 12px;
+        }
+
+        .add-card-form .form-input {
+            font-size: 0.82rem;
+            padding: 8px 10px;
+        }
+
+        /* ── Overlay / Modal ───────────────────────────────────── */
         .overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(6,8,15,0.92);
-            -webkit-backdrop-filter: blur(8px);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.92);
             backdrop-filter: blur(8px);
-            z-index: 100;
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 200;
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem;
+            padding: 24px;
         }
-        .overlay.active { display: flex; }
+
+        .overlay.active {
+            display: flex;
+        }
+
         .modal {
-            background: var(--card);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            max-width: 440px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            max-width: 400px;
             width: 100%;
-            padding: 2.5rem 2rem;
+            padding: 40px 32px;
             text-align: center;
-            box-shadow: 0 24px 48px rgba(0,0,0,0.4);
-            animation: scaleIn 0.3s cubic-bezier(0.16,1,0.3,1);
+            animation: modalIn 0.2s ease;
         }
+
         .scanner-ring {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 1.5rem;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
             position: relative;
-            border: 2px solid rgba(0,210,255,0.15);
-            border-radius: 50%;
+            border: 2px solid var(--gray-200);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0,210,255,0.04);
         }
+
         .scanner-ring::after {
             content: '';
             position: absolute;
-            inset: -2px;
-            border: 2px solid var(--pri);
-            border-radius: 50%;
-            animation: radar 1.5s linear infinite;
+            inset: -4px;
+            border: 1px solid var(--black);
+            animation: scan-pulse 1.5s ease infinite;
         }
+
         .scanner-ring svg {
-            width: 2.5rem;
-            height: 2.5rem;
-            stroke: var(--pri);
+            width: 28px;
+            height: 28px;
+            stroke: var(--black);
             stroke-width: 1.5;
             fill: none;
         }
+
         .result-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.2rem;
-            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border: 2px solid var(--black);
             display: flex;
             align-items: center;
             justify-content: center;
         }
+
         .result-icon.ok {
-            background: var(--suc-dim);
-            border: 2px solid var(--suc);
+            background: var(--white);
+            border-color: var(--black);
         }
+
         .result-icon.fail {
-            background: var(--err-dim);
-            border: 2px solid var(--err);
+            background: var(--black);
         }
 
-        /* ── Search ──────────────────────────────────────────── */
-        .search-bar {
-            display: flex;
-            gap: 0.6rem;
-            margin-bottom: 1rem;
-        }
-        .search-bar input { flex: 1; }
-
-        /* ── Danger Zone ─────────────────────────────────────── */
-        .danger-zone {
-            margin-top: 1.5rem;
-            border-top: 1px solid var(--bdr);
-            padding-top: 1.5rem;
-        }
-        .danger-zone h3 {
-            font-size: 0.92rem;
-            color: var(--err);
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        .danger-zone p {
-            font-size: 0.85rem;
-            color: var(--dim);
-            margin-bottom: 1rem;
-        }
-        .danger-actions {
-            display: flex;
-            gap: 0.6rem;
-            flex-wrap: wrap;
-        }
-
-        /* ── Info Grid ───────────────────────────────────────── */
-        .info-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 0.7rem;
-        }
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.88rem;
-        }
-        .info-row span { color: var(--dim); }
-
-        /* ── Payment Center ──────────────────────────────────── */
-        .pay-center {
-            max-width: 420px;
-            margin: 0 auto;
-        }
-        .pay-icon {
-            width: 90px;
-            height: 90px;
-            margin: 1rem auto 1.5rem;
-            background: var(--pri-dim);
-            border: 2px solid rgba(0,210,255,0.15);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .pay-icon svg {
-            width: 2.5rem;
-            height: 2.5rem;
-            stroke: var(--pri);
-            stroke-width: 1.5;
-            fill: none;
-        }
-
-        /* ── Toast Notification ──────────────────────────────── */
+        /* ── Toast ─────────────────────────────────────────────── */
         .toast {
             position: fixed;
-            bottom: 2rem;
+            bottom: 24px;
             left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: var(--card);
-            border: 1px solid var(--bdr);
-            border-radius: var(--radius);
-            padding: 0.8rem 1.5rem;
-            font-size: 0.88rem;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--black);
+            color: var(--white);
+            padding: 12px 24px;
+            font-size: 0.82rem;
             font-weight: 500;
-            z-index: 200;
+            z-index: 300;
             opacity: 0;
-            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            letter-spacing: 0.2px;
         }
+
         .toast.show {
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
-        .toast.ok { border-left: 3px solid var(--suc); }
-        .toast.er { border-left: 3px solid var(--err); }
 
-        /* ── Animations ──────────────────────────────────────── */
-        @keyframes pulse {
-            0%,100% { opacity: 1; }
-            50% { opacity: 0.4; }
+        .toast.ok {
+            background: var(--black);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
+
+        .toast.er {
+            background: var(--black);
+            border-left: 3px solid var(--white);
+        }
+
+        /* ── Dashboard — Recent + Sync ─────────────────────────── */
+        .dash-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+        }
+
+        .sync-card {
+            border: 1px solid var(--border);
+            padding: 24px;
+            background: var(--white);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: fit-content;
+        }
+
+        .sync-card p {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        /* ── Animations ────────────────────────────────────────── */
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.94); }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.97); }
             to { opacity: 1; transform: scale(1); }
         }
-        @keyframes radar {
-            from { transform: scale(1); opacity: 1; }
-            to { transform: scale(1.5); opacity: 0; }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
 
-        /* ── Mobile ──────────────────────────────────────────── */
+        @keyframes scan-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+
+        /* ── Mobile Sidebar Toggle ──────────────────────────────── */
+        .mobile-sidebar-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--black);
+            color: var(--white);
+            border: none;
+            z-index: 90;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .mobile-sidebar-toggle svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--white);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* ── Responsive ────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                top: var(--header-h);
+                width: 100%;
+                max-width: var(--sidebar-width);
+                z-index: 80;
+                transition: left 0.25s ease;
+                height: calc(100vh - var(--header-h));
+                background: var(--white);
+                box-shadow: 4px 0 24px rgba(0,0,0,0.08);
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .mobile-sidebar-toggle {
+                display: flex;
+            }
+
+            .sidebar-backdrop {
+                display: none;
+                position: fixed;
+                top: var(--header-h);
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.2);
+                z-index: 79;
+            }
+
+            .sidebar-backdrop.show {
+                display: block;
+            }
+
+            .dash-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                padding: 20px;
+            }
+        }
+
         @media (max-width: 640px) {
-            .panel { padding: 1rem; }
-            .page-title { font-size: 1.35rem; }
-            .stat-value { font-size: 1.5rem; }
-            .conn-bar { flex-direction: column; align-items: stretch; }
-            .conn-bar input { width: 100%; }
-            .conn-status { margin-left: 0; }
+            header {
+                padding: 0 16px;
+            }
+
+            .logo-tag {
+                display: none;
+            }
+
+            .panel-title {
+                font-size: 1.25rem;
+            }
+
+            .stat-value {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
+
 <body>
 
-    <!-- Connection Bar -->
-    <div class="conn-bar">
-        <label>ESP IP:</label>
-        <input type="text" id="esp-ip" value="192.168.1.100" placeholder="192.168.x.x">
-        <button class="conn-btn" onclick="connectESP()">Connect</button>
-        <div class="conn-status">
-            <div class="conn-dot" id="conn-dot"></div>
-            <span id="conn-text" style="color: var(--dim)">Disconnected</span>
-        </div>
-    </div>
-
-    <!-- Header -->
+    <!-- ═══ HEADER ═══ -->
     <header>
         <div class="logo">
-            <div class="logo-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <div class="logo-mark">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18L19.18 8 12 11.82 4.82 8 12 4.18z" />
+                </svg>
             </div>
             <span class="logo-text">BondPay</span>
+            <span class="logo-tag">Terminal</span>
         </div>
-        <span class="header-clock" id="header-clock">--:--:--</span>
+        <div class="header-right">
+            <div class="conn-indicator">
+                <div class="conn-dot" id="conn-dot"></div>
+                <span id="conn-text">Offline</span>
+            </div>
+            <span class="header-clock" id="header-clock">--:--:--</span>
+        </div>
     </header>
 
-    <!-- Nav Tabs -->
-    <div class="nav-tabs" id="nav-tabs">
-        <button class="active" onclick="switchTab('dash')">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-            Dashboard
-        </button>
-        <button onclick="switchTab('cards')">
-            <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-            Cards
-        </button>
-        <button onclick="switchTab('pay')">
-            <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Payment
-        </button>
-        <button onclick="switchTab('txn')">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Logs
-        </button>
-        <button onclick="switchTab('set')">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Settings
-        </button>
-    </div>
+    <!-- ═══ APP SHELL ═══ -->
+    <div class="app-shell">
 
-    <!-- ═══════ DASHBOARD ═══════ -->
-    <div id="p-dash" class="panel active">
-        <h1 class="page-title" id="station-name">BondPay Station</h1>
-        <p class="page-sub">Offline terminal management dashboard</p>
+        <!-- ── Sidebar: Payment + Cards ── -->
+        <aside class="sidebar" id="sidebar">
 
-        <div class="stat-grid">
-            <div class="stat-card">
-                <div class="stat-label">Active Cards</div>
-                <div class="stat-value" id="s-cards">0</div>
+            <!-- Payment Section -->
+            <div class="sidebar-section">
+                <div class="section-label">Payment</div>
+                <div class="pay-amount-display">
+                    <div class="pay-currency">Amount (NPR)</div>
+                    <div class="pay-amount-input-wrap">
+                        <input type="number" id="pay-amount" placeholder="0.00" min="0.01" step="0.01">
+                    </div>
+                </div>
+                <div class="quick-amounts">
+                    <button class="quick-amt" onclick="setAmount(50)">50</button>
+                    <button class="quick-amt" onclick="setAmount(100)">100</button>
+                    <button class="quick-amt" onclick="setAmount(200)">200</button>
+                    <button class="quick-amt" onclick="setAmount(500)">500</button>
+                    <button class="quick-amt" onclick="setAmount(1000)">1000</button>
+                    <button class="quick-amt" onclick="setAmount(2000)">2000</button>
+                </div>
+                <button class="pay-btn" onclick="startPayment(event)">Initiate Payment</button>
             </div>
-            <div class="stat-card suc">
-                <div class="stat-label">Total Balance</div>
-                <div class="stat-value" id="s-balance">NPR 0</div>
-            </div>
-            <div class="stat-card err">
-                <div class="stat-label">Pending Sync</div>
-                <div class="stat-value" id="s-sync">0</div>
-            </div>
-        </div>
 
-        <div class="content-grid two-col">
-            <div class="form-card">
-                <h2>Recent Transactions</h2>
-                <div class="table-wrap">
+            <!-- Cards Section -->
+            <div class="sidebar-section">
+                <div class="section-label">Registered Cards</div>
+                <div id="cards-sidebar-list">
+                    <div class="empty-state">No cards registered</div>
+                </div>
+                <button class="add-card-toggle" id="add-card-toggle" onclick="toggleAddCard()">+ Add New Card</button>
+                <div class="add-card-form" id="add-card-form">
+                    <form onsubmit="registerCard(event)">
+                        <div class="form-group">
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" class="form-input" id="reg-name" required placeholder="e.g. Sakshyam">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">User ID</label>
+                            <input type="text" class="form-input" id="reg-userid" required placeholder="e.g. BP001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Initial Balance (NPR)</label>
+                            <input type="number" class="form-input" id="reg-balance" required min="0" value="1000" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-black btn-full">Register Card</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar backdrop -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+        <!-- ── Main Content ── -->
+        <div class="main-content">
+
+            <!-- Tab Navigation -->
+            <nav class="main-nav" id="main-nav">
+                <button class="active" onclick="switchTab('dash')">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="9" rx="1" />
+                        <rect x="14" y="3" width="7" height="5" rx="1" />
+                        <rect x="14" y="12" width="7" height="9" rx="1" />
+                        <rect x="3" y="16" width="7" height="5" rx="1" />
+                    </svg>
+                    Overview
+                </button>
+                <button onclick="switchTab('txn')">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Transactions
+                </button>
+                <button onclick="switchTab('set')">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Settings
+                </button>
+            </nav>
+
+            <!-- ═══ DASHBOARD / OVERVIEW ═══ -->
+            <div id="p-dash" class="panel active">
+                <div class="panel-header">
+                    <h1 class="panel-title" id="station-name">BondPay Station</h1>
+                    <p class="panel-subtitle">Terminal management overview</p>
+                </div>
+
+                <div class="stat-row">
+                    <div class="stat-cell">
+                        <div class="stat-label">Active Cards</div>
+                        <div class="stat-value" id="s-cards">0</div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">Total Balance</div>
+                        <div class="stat-value" id="s-balance">NPR 0</div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">Pending Sync</div>
+                        <div class="stat-value" id="s-sync">0</div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">Transactions</div>
+                        <div class="stat-value" id="s-txn-count">0</div>
+                    </div>
+                </div>
+
+                <div class="dash-grid">
+                    <div>
+                        <div class="form-section-title">Recent Activity</div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Name</th>
+                                        <th>Amount</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-list">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;color:var(--text-muted)">No transactions</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="sync-card">
+                        <div class="form-section-title">Sync Queue</div>
+                        <p>Push locally queued transactions for cloud synchronization.</p>
+                        <button class="btn btn-black btn-full" onclick="syncTransactions()">Sync Now</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ TRANSACTION LOG ═══ -->
+            <div id="p-txn" class="panel">
+                <div class="panel-header">
+                    <h1 class="panel-title">Transactions</h1>
+                    <p class="panel-subtitle">Full audit history</p>
+                </div>
+
+                <div class="search-row">
+                    <input type="text" class="form-input" id="txn-search" oninput="filterTransactions()"
+                        placeholder="Search by name, UID, status...">
+                    <button class="btn btn-outline" onclick="loadData()">Refresh</button>
+                </div>
+
+                <div class="table-container">
                     <table>
-                        <thead><tr><th>Time</th><th>Name</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead>
-                        <tbody id="recent-list">
-                            <tr><td colspan="5" style="text-align:center;color:var(--dim)">No transactions</td></tr>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Timestamp</th>
+                                <th>UID</th>
+                                <th>Name</th>
+                                <th>Amount</th>
+                                <th>Previous</th>
+                                <th>Remaining</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txn-list">
+                            <tr>
+                                <td colspan="8" style="text-align:center;color:var(--text-muted)">No records</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="form-card" style="display:flex;flex-direction:column;gap:1rem">
-                <h2>Sync Queue</h2>
-                <p style="color:var(--dim);font-size:0.88rem;line-height:1.5">
-                    Push locally queued transactions for cloud synchronization.
-                </p>
-                <button class="btn btn-primary btn-full" onclick="syncTransactions()">Sync Now</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══════ CARDS ═══════ -->
-    <div id="p-cards" class="panel">
-        <h1 class="page-title">Card Management</h1>
-        <p class="page-sub">Add, remove, and manage local RFID cards</p>
-
-        <div class="content-grid two-col">
-            <div class="form-card">
-                <h2>Registered Cards</h2>
-                <div class="table-wrap">
-                    <table>
-                        <thead><tr><th>Name</th><th>User ID</th><th>UID</th><th>Balance</th><th>Actions</th></tr></thead>
-                        <tbody id="cards-list">
-                            <tr><td colspan="5" style="text-align:center;color:var(--dim)">No cards</td></tr>
-                        </tbody>
-                    </table>
+            <!-- ═══ SETTINGS ═══ -->
+            <div id="p-set" class="panel">
+                <div class="panel-header">
+                    <h1 class="panel-title">Settings</h1>
+                    <p class="panel-subtitle">Connection & station configuration</p>
                 </div>
-            </div>
-            <div class="form-card">
-                <h2>Add New Card</h2>
-                <form onsubmit="registerCard(event)">
-                    <div class="form-group">
-                        <label class="form-label">Customer Name</label>
-                        <input type="text" class="form-input" id="reg-name" required placeholder="e.g. Sakshyam">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">User ID</label>
-                        <input type="text" class="form-input" id="reg-userid" required placeholder="e.g. BP001">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Balance (NPR)</label>
-                        <input type="number" class="form-input" id="reg-balance" required min="0" value="1000" step="0.01">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-full">Register Card</button>
-                </form>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══════ PAYMENT ═══════ -->
-    <div id="p-pay" class="panel">
-        <h1 class="page-title">Payment</h1>
-        <p class="page-sub">Tap RFID card to deduct balance</p>
-
-        <div class="pay-center">
-            <div class="form-card" style="text-align:center">
-                <div class="pay-icon">
-                    <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <!-- ESP Connection -->
+                <div class="conn-card">
+                    <div class="conn-card-title">ESP Connection</div>
+                    <div class="conn-row">
+                        <div class="form-group">
+                            <label class="form-label">ESP IP Address</label>
+                            <input type="text" class="form-input" id="esp-ip" value="192.168.1.100" placeholder="192.168.x.x">
+                        </div>
+                        <button class="btn btn-black" onclick="connectESP()" style="margin-bottom:0;height:38px;">Connect</button>
+                    </div>
                 </div>
-                <h2 style="font-size:1.3rem;margin-bottom:0.4rem">Initiate Payment</h2>
-                <p style="color:var(--dim);font-size:0.9rem;margin-bottom:1.8rem">Enter amount, then tap card on terminal reader.</p>
-                <form onsubmit="startPayment(event)">
-                    <div class="form-group" style="text-align:left">
-                        <label class="form-label">Amount (NPR)</label>
-                        <input type="number" class="form-input" id="pay-amount" style="font-size:1.4rem;text-align:center;padding:0.9rem" required min="0.01" step="0.01" placeholder="0.00">
+
+                <div class="settings-grid">
+                    <!-- Station Settings -->
+                    <div class="form-section">
+                        <div class="form-section-title">Station Configuration</div>
+                        <form onsubmit="saveSettings(event)">
+                            <div class="form-group">
+                                <label class="form-label">Station Name</label>
+                                <input type="text" class="form-input" id="setting-name" required value="BondPay Station 1">
+                            </div>
+                            <button type="submit" class="btn btn-black">Save Settings</button>
+                        </form>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-full" style="height:3rem;font-size:1rem">Start Payment</button>
-                </form>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══════ TRANSACTION LOG ═══════ -->
-    <div id="p-txn" class="panel">
-        <h1 class="page-title">Transaction Log</h1>
-        <p class="page-sub">Full audit history</p>
-
-        <div class="form-card">
-            <div class="search-bar">
-                <input type="text" class="form-input" id="txn-search" oninput="filterTransactions()" placeholder="Search by name, UID, status...">
-                <button class="btn btn-outline" onclick="loadData()">Refresh</button>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>#</th><th>Time</th><th>UID</th><th>Name</th><th>Amount</th><th>Prev Bal</th><th>Remaining</th><th>Status</th></tr></thead>
-                    <tbody id="txn-list">
-                        <tr><td colspan="8" style="text-align:center;color:var(--dim)">No records</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══════ SETTINGS ═══════ -->
-    <div id="p-set" class="panel">
-        <h1 class="page-title">Settings</h1>
-        <p class="page-sub">Station configuration</p>
-
-        <div class="content-grid two-col">
-            <div class="form-card">
-                <h2>System Settings</h2>
-                <form onsubmit="saveSettings(event)">
-                    <div class="form-group">
-                        <label class="form-label">Station Name</label>
-                        <input type="text" class="form-input" id="setting-name" required value="BondPay Station 1">
+                    <!-- Terminal Info -->
+                    <div class="form-section">
+                        <div class="form-section-title">Terminal Information</div>
+                        <div class="info-list">
+                            <div class="info-item">
+                                <span class="info-item-label">ESP IP</span>
+                                <span class="info-item-value" id="info-ip">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-item-label">Free Memory</span>
+                                <span class="info-item-value" id="info-heap">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-item-label">Uptime</span>
+                                <span class="info-item-value" id="info-uptime">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-item-label">Mode</span>
+                                <span class="info-item-value" id="info-mode">--</span>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Save Settings</button>
-                </form>
+                </div>
 
-                <div class="danger-zone">
-                    <h3>Danger Zone</h3>
-                    <p>Once you purge data, the station database is permanently wiped.</p>
-                    <div class="danger-actions">
+                <!-- Danger Zone -->
+                <div class="danger-section" style="margin-top: 24px;">
+                    <div class="danger-title">Danger Zone</div>
+                    <p class="danger-desc">These actions are irreversible. Purging data will permanently wipe the station database.</p>
+                    <div class="danger-btns">
                         <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
-                        <button class="btn btn-danger btn-outline" onclick="factoryReset()">Factory Reset</button>
+                        <button class="btn btn-outline" onclick="factoryReset()">Factory Reset</button>
                     </div>
                 </div>
             </div>
-            <div class="form-card">
-                <h2>Terminal Info</h2>
-                <div class="info-grid">
-                    <div class="info-row"><span>ESP IP:</span><strong id="info-ip">--</strong></div>
-                    <div class="info-row"><span>Free Memory:</span><strong id="info-heap">--</strong></div>
-                    <div class="info-row"><span>Uptime:</span><strong id="info-uptime">--</strong></div>
-                    <div class="info-row"><span>Mode:</span><strong id="info-mode">--</strong></div>
-                </div>
-            </div>
-        </div>
-    </div>
+
+        </div><!-- /main-content -->
+
+    </div><!-- /app-shell -->
+
+    <!-- Mobile Sidebar Toggle -->
+    <button class="mobile-sidebar-toggle" id="mobile-toggle" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24">
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+    </button>
 
     <!-- Overlay Modal -->
     <div id="overlay" class="overlay">
@@ -818,11 +1386,10 @@
         let pollingTimer = null;
 
         // ── Init ───────────────────────────────────────────────
-        window.onload = function() {
+        window.onload = function () {
             updateClock();
             setInterval(updateClock, 1000);
 
-            // Try to restore last IP from localStorage
             const savedIP = localStorage.getItem('bondpay_esp_ip');
             if (savedIP) {
                 document.getElementById('esp-ip').value = savedIP;
@@ -833,6 +1400,18 @@
             document.getElementById('header-clock').innerText = new Date().toLocaleTimeString();
         }
 
+        // Helper to fetch with timeout
+        function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+                options.signal = AbortSignal.timeout(timeoutMs);
+                return fetch(url, options);
+            }
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            options.signal = controller.signal;
+            return fetch(url, options).finally(() => clearTimeout(id));
+        }
+
         // ── Connection ─────────────────────────────────────────
         function connectESP() {
             const ip = document.getElementById('esp-ip').value.trim();
@@ -841,30 +1420,23 @@
             API_BASE = 'http://' + ip;
             localStorage.setItem('bondpay_esp_ip', ip);
 
-            document.getElementById('conn-text').innerText = 'Connecting...';
-            document.getElementById('conn-text').style.color = 'var(--warn)';
+            document.getElementById('conn-text').innerText = 'Connecting';
+            document.getElementById('conn-text').style.color = 'var(--text-muted)';
 
-            fetch(API_BASE + '/api/status', { signal: AbortSignal.timeout(5000) })
+            fetchWithTimeout(API_BASE + '/api/status', {}, 5000)
                 .then(r => r.json())
                 .then(data => {
                     connected = true;
                     document.getElementById('conn-dot').classList.add('ok');
-                    document.getElementById('conn-text').innerText = 'Connected';
-                    document.getElementById('conn-text').style.color = 'var(--suc)';
+                    document.getElementById('conn-text').innerText = 'Online';
+                    document.getElementById('conn-text').style.color = 'var(--text-primary)';
 
-                    toast('Connected to BondPay Terminal!', 'ok');
-
-                    // Sync time
+                    toast('Connected to BondPay Terminal', 'ok');
                     syncTime();
-
-                    // Load data
                     loadData();
-
-                    // Start polling
                     startPolling();
 
-                    // Auto refresh dashboard
-                    setInterval(function() {
+                    setInterval(function () {
                         if (currentTab === 'dash' && connected) loadData();
                     }, 6000);
                 })
@@ -872,45 +1444,68 @@
                     connected = false;
                     document.getElementById('conn-dot').classList.remove('ok');
                     document.getElementById('conn-text').innerText = 'Failed';
-                    document.getElementById('conn-text').style.color = 'var(--err)';
-                    toast('Cannot reach ESP at ' + ip, 'er');
+                    document.getElementById('conn-text').style.color = 'var(--text-muted)';
+                    toast('Connection failed: ' + err.message, 'er');
+                    console.error('Connection error:', err);
                 });
         }
 
         function api(path, method) {
             if (!connected) { toast('Not connected to ESP', 'er'); return Promise.reject('Not connected'); }
-            return fetch(API_BASE + path, {
-                method: method || 'GET',
-                signal: AbortSignal.timeout(8000)
-            });
+            return fetchWithTimeout(API_BASE + path, {
+                method: method || 'GET'
+            }, 20000);
         }
 
         // ── Time Sync ──────────────────────────────────────────
         function syncTime() {
             const epoch = Math.floor(Date.now() / 1000);
-            api('/api/time?epoch=' + epoch, 'POST').catch(function(){});
+            api('/api/time?epoch=' + epoch, 'POST').catch(function () { });
         }
 
         // ── Navigation ─────────────────────────────────────────
         function switchTab(tab) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.main-nav button').forEach(b => b.classList.remove('active'));
 
             document.getElementById('p-' + tab).classList.add('active');
 
-            const tabMap = {dash:0, cards:1, pay:2, txn:3, set:4};
-            const btns = document.getElementById('nav-tabs').children;
+            const tabMap = { dash: 0, txn: 1, set: 2 };
+            const btns = document.getElementById('main-nav').children;
             if (tabMap[tab] !== undefined) btns[tabMap[tab]].classList.add('active');
 
             currentTab = tab;
             if (connected) loadData();
         }
 
+        // ── Quick Amount ───────────────────────────────────────
+        function setAmount(val) {
+            document.getElementById('pay-amount').value = val;
+        }
+
+        // ── Toggle Add Card Form ───────────────────────────────
+        function toggleAddCard() {
+            const form = document.getElementById('add-card-form');
+            form.classList.toggle('open');
+            const btn = document.getElementById('add-card-toggle');
+            btn.textContent = form.classList.contains('open') ? '— Cancel' : '+ Add New Card';
+        }
+
+        // ── Mobile Sidebar ─────────────────────────────────────
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebar-backdrop').classList.toggle('show');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebar-backdrop').classList.remove('show');
+        }
+
         // ── Load Data ──────────────────────────────────────────
         function loadData() {
             if (!connected) return;
 
-            // Status
             api('/api/status')
                 .then(r => r.json())
                 .then(data => {
@@ -924,9 +1519,8 @@
                     const m = Math.floor((s % 3600) / 60);
                     document.getElementById('info-uptime').innerText = h + 'h ' + m + 'm';
                 })
-                .catch(function(){});
+                .catch(function () { });
 
-            // Cards
             api('/api/cards')
                 .then(r => r.json())
                 .then(cards => {
@@ -934,45 +1528,49 @@
                     let total = 0;
                     cards.forEach(c => total += parseFloat(c.balance || 0));
                     document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
-                    renderCards(cards);
+                    renderCardsSidebar(cards);
                 })
-                .catch(function(){});
+                .catch(function () { });
 
-            // Transactions
             api('/api/transactions')
                 .then(r => r.json())
                 .then(txns => {
                     allTransactions = txns;
+                    document.getElementById('s-txn-count').innerText = txns.length;
                     renderTransactions(txns);
                     renderRecent(txns);
                 })
-                .catch(function(){});
+                .catch(function () { });
         }
 
         // ── Escape HTML ────────────────────────────────────────
         function esc(s) {
             if (!s) return '';
-            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
         }
 
-        // ── Render Cards ───────────────────────────────────────
-        function renderCards(cards) {
-            const el = document.getElementById('cards-list');
+        // ── Render Cards in Sidebar ────────────────────────────
+        function renderCardsSidebar(cards) {
+            const el = document.getElementById('cards-sidebar-list');
             if (!cards.length) {
-                el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--dim)">No cards registered</td></tr>';
+                el.innerHTML = '<div class="empty-state">No cards registered</div>';
                 return;
             }
             el.innerHTML = cards.map(c => `
-                <tr>
-                    <td><strong>${esc(c.name)}</strong></td>
-                    <td><code>${esc(c.userId)}</code></td>
-                    <td><code style="font-size:0.8rem">${esc(c.uid)}</code></td>
-                    <td><strong>NPR ${parseFloat(c.balance).toFixed(2)}</strong></td>
-                    <td>
-                        <button class="btn btn-outline btn-sm" onclick="editBalance('${esc(c.uid)}', ${c.balance})">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteCard('${esc(c.uid)}')">Del</button>
-                    </td>
-                </tr>
+                <div class="card-item">
+                    <div class="card-info">
+                        <div class="card-name">${esc(c.name)}</div>
+                        <div class="card-uid">${esc(c.uid)}</div>
+                        <div class="card-actions">
+                            <button class="card-action-btn" onclick="editBalance('${esc(c.uid)}', ${c.balance})">Edit</button>
+                            <button class="card-action-btn del" onclick="deleteCard('${esc(c.uid)}')">Delete</button>
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="card-balance">NPR ${parseFloat(c.balance).toFixed(2)}</div>
+                        <div class="card-balance-label">${esc(c.userId)}</div>
+                    </div>
+                </div>
             `).join('');
         }
 
@@ -980,7 +1578,7 @@
         function renderTransactions(txns) {
             const el = document.getElementById('txn-list');
             if (!txns.length) {
-                el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--dim)">No records</td></tr>';
+                el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">No records</td></tr>';
                 return;
             }
             const sorted = [...txns].reverse();
@@ -988,13 +1586,13 @@
                 const cls = t.status.toLowerCase().includes('success') ? 'badge-ok' : 'badge-err';
                 return `
                     <tr>
-                        <td>#${t.id}</td>
+                        <td class="mono">#${t.id}</td>
                         <td>${esc(t.timestamp)}</td>
-                        <td><code>${esc(t.uid)}</code></td>
+                        <td class="mono">${esc(t.uid)}</td>
                         <td>${esc(t.name)}</td>
                         <td><strong>${parseFloat(t.amount).toFixed(2)}</strong></td>
-                        <td>${parseFloat(t.prevBal).toFixed(2)}</td>
-                        <td>${parseFloat(t.remBal).toFixed(2)}</td>
+                        <td class="mono">${parseFloat(t.prevBal).toFixed(2)}</td>
+                        <td class="mono">${parseFloat(t.remBal).toFixed(2)}</td>
                         <td><span class="badge ${cls}">${esc(t.status)}</span></td>
                     </tr>
                 `;
@@ -1005,7 +1603,7 @@
         function renderRecent(txns) {
             const el = document.getElementById('recent-list');
             if (!txns.length) {
-                el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--dim)">No transactions</td></tr>';
+                el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No transactions</td></tr>';
                 return;
             }
             const recent = [...txns].reverse().slice(0, 5);
@@ -1017,22 +1615,22 @@
                         <td>${esc(time)}</td>
                         <td>${esc(t.name)}</td>
                         <td><strong>${parseFloat(t.amount).toFixed(2)}</strong></td>
-                        <td>${parseFloat(t.remBal).toFixed(2)}</td>
+                        <td class="mono">${parseFloat(t.remBal).toFixed(2)}</td>
                         <td><span class="badge ${cls}">${esc(t.status)}</span></td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // ── Polling (for modal states) ─────────────────────────
+        // ── Polling ────────────────────────────────────────────
         function startPolling() {
             if (pollingTimer) return;
-            pollingTimer = setInterval(function() {
+            pollingTimer = setInterval(function () {
                 if (!connected) return;
                 api('/api/status')
                     .then(r => r.json())
                     .then(data => handleState(data))
-                    .catch(function(){});
+                    .catch(function () { });
             }, 1200);
         }
 
@@ -1046,21 +1644,21 @@
                     <div class="scanner-ring">
                         <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     </div>
-                    <h2 style="font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Waiting for Card</h2>
-                    <p style="color:var(--pri);font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">NPR ${parseFloat(data.activeAmount).toFixed(2)}</p>
-                    <p style="color:var(--dim);font-size:0.92rem;margin-bottom:2rem">Tap customer RFID card on terminal reader.</p>
-                    <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel Payment</button>
+                    <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Waiting for Card</h2>
+                    <p style="font-size:1.4rem;font-weight:800;margin-bottom:4px;letter-spacing:-0.5px">NPR ${parseFloat(data.activeAmount).toFixed(2)}</p>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">Tap customer RFID card on terminal reader.</p>
+                    <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel</button>
                 `;
             } else if (data.mode === 'ADD_CARD') {
                 overlay.classList.add('active');
                 modal.innerHTML = `
                     <div class="scanner-ring">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--pri)" stroke="none"/></svg>
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--black)" stroke="none"/></svg>
                     </div>
-                    <h2 style="font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Scan New Card</h2>
-                    <p style="color:var(--pri);font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">User ID: ${esc(data.activeUserId)}</p>
-                    <p style="color:var(--dim);font-size:0.92rem;margin-bottom:2rem">Tap unregistered RFID card on terminal.</p>
-                    <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel Registration</button>
+                    <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Scan New Card</h2>
+                    <p style="font-size:1rem;font-weight:700;margin-bottom:4px">User ID: ${esc(data.activeUserId)}</p>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">Tap unregistered RFID card on terminal.</p>
+                    <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel</button>
                 `;
             } else {
                 if (data.lastEvent && data.lastEvent.processed === false) {
@@ -1082,32 +1680,32 @@
                 modal.innerHTML = `
                     <div class="result-screen">
                         <div class="result-icon ok">
-                            <svg style="width:2.5rem;height:2.5rem" viewBox="0 0 24 24" fill="none" stroke="var(--suc)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            <svg style="width:28px;height:28px" viewBox="0 0 24 24" fill="none" stroke="var(--black)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                         </div>
-                        <h2 style="color:var(--suc);font-size:1.4rem;margin-bottom:0.4rem;font-weight:700">Success</h2>
-                        <p style="font-weight:600;font-size:1.1rem;margin-bottom:0.2rem">${esc(ev.name || '')}</p>
-                        <p style="color:var(--dim);font-size:0.85rem;margin-bottom:1.2rem">UID: <code>${esc(ev.uid)}</code></p>
-                        <div style="background:rgba(255,255,255,0.02);border:1px solid var(--bdr);padding:1rem;border-radius:8px;text-align:left;margin-bottom:1.2rem">
-                            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem"><span>Charged:</span><strong>NPR ${parseFloat(ev.amount||0).toFixed(2)}</strong></div>
-                            <div style="display:flex;justify-content:space-between"><span>Remaining:</span><strong>NPR ${parseFloat(ev.remBal||0).toFixed(2)}</strong></div>
+                        <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Payment Successful</h2>
+                        <p style="font-weight:600;font-size:0.95rem;margin-bottom:2px">${esc(ev.name || '')}</p>
+                        <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:16px;font-family:monospace">${esc(ev.uid)}</p>
+                        <div style="border:1px solid var(--border);padding:16px;text-align:left;margin-bottom:16px">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.85rem"><span style="color:var(--text-muted)">Charged</span><strong>NPR ${parseFloat(ev.amount || 0).toFixed(2)}</strong></div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.85rem"><span style="color:var(--text-muted)">Remaining</span><strong>NPR ${parseFloat(ev.remBal || 0).toFixed(2)}</strong></div>
                         </div>
-                        <p style="color:var(--dim);font-size:0.78rem">Auto-closing in 3s...</p>
+                        <p style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:1px">Auto-closing in 3s</p>
                     </div>
                 `;
             } else {
                 modal.innerHTML = `
                     <div class="result-screen">
                         <div class="result-icon fail">
-                            <svg style="width:2.5rem;height:2.5rem" viewBox="0 0 24 24" fill="none" stroke="var(--err)" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <svg style="width:28px;height:28px" viewBox="0 0 24 24" fill="none" stroke="var(--white)" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </div>
-                        <h2 style="color:var(--err);font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Failed</h2>
-                        <p style="font-weight:600;font-size:1.05rem;margin-bottom:1.5rem">${esc(ev.message || 'Transaction Declined')}</p>
-                        <button class="btn btn-outline btn-full" onclick="closeOverlay()">Close</button>
+                        <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:800;letter-spacing:-0.3px">Failed</h2>
+                        <p style="font-weight:500;font-size:0.92rem;margin-bottom:20px;color:var(--text-secondary)">${esc(ev.message || 'Transaction Declined')}</p>
+                        <button class="btn btn-black btn-full" onclick="closeOverlay()">Close</button>
                     </div>
                 `;
             }
 
-            api('/api/status/acknowledge-event', 'POST').catch(function(){});
+            api('/api/status/acknowledge-event', 'POST').catch(function () { });
             setTimeout(closeOverlay, 3500);
         }
 
@@ -1118,13 +1716,13 @@
 
         // ── Actions ────────────────────────────────────────────
         function startPayment(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             const amt = document.getElementById('pay-amount').value;
             if (amt <= 0) return toast('Enter a valid amount', 'er');
-            api('/api/payment/start?amount=' + amt, 'POST').then(function() {
+            api('/api/payment/start?amount=' + amt, 'POST').then(function () {
                 document.getElementById('pay-amount').value = '';
-                toast('Payment mode activated. Tap card on terminal.', 'ok');
-            }).catch(function(){});
+                toast('Payment mode activated — tap card on terminal', 'ok');
+            }).catch(function () { });
         }
 
         function registerCard(e) {
@@ -1133,17 +1731,18 @@
             const u = document.getElementById('reg-userid').value;
             const b = document.getElementById('reg-balance').value;
             api('/api/cards/add?name=' + encodeURIComponent(n) + '&userId=' + encodeURIComponent(u) + '&balance=' + b, 'POST')
-                .then(function() {
+                .then(function () {
                     document.getElementById('reg-name').value = '';
                     document.getElementById('reg-userid').value = '';
                     document.getElementById('reg-balance').value = '1000';
-                    toast('Scan RFID card on terminal to register.', 'ok');
-                }).catch(function(){});
+                    toggleAddCard();
+                    toast('Scan RFID card on terminal to register', 'ok');
+                }).catch(function () { });
         }
 
         function cancelAction(type) {
             const url = type === 'payment' ? '/api/payment/cancel' : '/api/cards/cancel';
-            api(url, 'POST').then(closeOverlay).catch(function(){});
+            api(url, 'POST').then(closeOverlay).catch(function () { });
         }
 
         function editBalance(uid, current) {
@@ -1155,53 +1754,53 @@
                 .then(r => {
                     if (r.ok) { toast('Balance updated', 'ok'); loadData(); }
                     else toast('Update failed', 'er');
-                }).catch(function(){});
+                }).catch(function () { });
         }
 
         function deleteCard(uid) {
             if (!confirm('Delete card ' + uid + '?')) return;
             api('/api/cards/delete?uid=' + uid, 'POST')
-                .then(function() { toast('Card deleted', 'ok'); loadData(); })
-                .catch(function(){});
+                .then(function () { toast('Card deleted', 'ok'); loadData(); })
+                .catch(function () { });
         }
 
         function syncTransactions() {
             api('/api/transactions/sync', 'POST')
-                .then(function() { toast('Sync complete', 'ok'); loadData(); })
-                .catch(function(){});
+                .then(function () { toast('Sync complete', 'ok'); loadData(); })
+                .catch(function () { });
         }
 
         function clearLogs() {
             if (!confirm('Clear all transaction logs?')) return;
             api('/api/transactions/clear', 'POST')
-                .then(function() { toast('Logs cleared', 'ok'); loadData(); })
-                .catch(function(){});
+                .then(function () { toast('Logs cleared', 'ok'); loadData(); })
+                .catch(function () { });
         }
 
         function factoryReset() {
             if (!confirm('WARNING: This will delete ALL data. Are you sure?')) return;
             api('/api/settings/factory-reset', 'POST')
-                .then(function() { toast('Factory reset complete. ESP restarting...', 'ok'); })
-                .catch(function(){});
+                .then(function () { toast('Factory reset complete — ESP restarting', 'ok'); })
+                .catch(function () { });
         }
 
         function saveSettings(e) {
             e.preventDefault();
             const name = document.getElementById('setting-name').value;
             api('/api/settings?stationName=' + encodeURIComponent(name), 'POST')
-                .then(function() {
+                .then(function () {
                     toast('Settings saved', 'ok');
                     document.getElementById('station-name').innerText = name;
-                }).catch(function(){});
+                }).catch(function () { });
         }
 
         function filterTransactions() {
             const q = document.getElementById('txn-search').value.toLowerCase();
             const filtered = allTransactions.filter(t =>
-                (t.uid||'').toLowerCase().includes(q) ||
-                (t.name||'').toLowerCase().includes(q) ||
-                (t.status||'').toLowerCase().includes(q) ||
-                (t.timestamp||'').toLowerCase().includes(q)
+                (t.uid || '').toLowerCase().includes(q) ||
+                (t.name || '').toLowerCase().includes(q) ||
+                (t.status || '').toLowerCase().includes(q) ||
+                (t.timestamp || '').toLowerCase().includes(q)
             );
             renderTransactions(filtered);
         }
@@ -1215,4 +1814,5 @@
         }
     </script>
 </body>
+
 </html>
