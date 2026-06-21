@@ -1,12 +1,18 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <DNSServer.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <vector>
+
+// ══════════════════════════════════════════════════════════════════════
+// ── HARDCODED WIFI CREDENTIALS ───────────────────────────────────────
+// Change these to your WiFi network name and password
+// ══════════════════════════════════════════════════════════════════════
+const char* WIFI_SSID     = "SUNIMA 9706";
+const char* WIFI_PASSWORD = "r1:705F7";
 
 // ── Pin Mapping ──────────────────────────────────────────────────────
 #define RST_PIN    255
@@ -20,7 +26,6 @@ extern const int LED = 15;     // D8 (GPIO15)
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 ESP8266WebServer server(80);
-DNSServer dnsServer;
 
 // ── Global State ─────────────────────────────────────────────────────
 enum StationMode {
@@ -31,7 +36,7 @@ enum StationMode {
 
 StationMode currentMode = MODE_READY;
 
-// Clock sync variables
+// Clock sync
 uint32_t timeSyncEpoch = 0;
 unsigned long timeSyncMillis = 0;
 
@@ -55,7 +60,7 @@ struct LastEvent {
 
 LastEvent lastEvent = {true, "", "", "", 0.0f, 0.0f, 0.0f, ""};
 
-// Scan cooldown and display states
+// Scan cooldown
 unsigned long lastScanTime = 0;
 const unsigned long COOLDOWN_DELAY = 1500;
 bool readyDisplayed = false;
@@ -64,70 +69,94 @@ unsigned long buttonPressStart = 0;
 // Cached pending sync count
 int pendingSyncCount = 0;
 
+// Store assigned IP for display
+String deviceIP = "Connecting...";
+
 // ── Include Custom Modules ───────────────────────────────────────────
 #include "storage.h"
 #include "rfid.h"
 #include "payment.h"
 #include "web.h"
 
-// ── Captive Portal Detection Responses ───────────────────────────────
-// These specific paths are checked by Android/iOS/Windows/macOS
-// to determine if they're behind a captive portal.
-// Returning a redirect makes the device show the login page popup.
-void handleCaptivePortalDetect() {
-  server.sendHeader("Location", "http://192.168.4.1/", true);
-  server.send(302, "text/html", "");
+// ══════════════════════════════════════════════════════════════════════
+// ── WiFi STA Connection (connects to your router) ────────────────────
+// ══════════════════════════════════════════════════════════════════════
+void connectToWiFi() {
+  Serial.println("Connecting to WiFi...");
+  Serial.print("SSID: ");
+  Serial.println(WIFI_SSID);
+
+  lcd.clear();
+  lcd.setCursor(0, 0); lcd.print("Connecting WiFi");
+  lcd.setCursor(0, 1); lcd.print(WIFI_SSID);
+
+  WiFi.persistent(false);
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  delay(100);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // Wait up to 20 seconds for connection
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+
+    // Blink WiFi LED while connecting
+    digitalWrite(WIFI_LED, (attempts % 2 == 0) ? HIGH : LOW);
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    deviceIP = WiFi.localIP().toString();
+    Serial.println("WiFi connected!");
+    Serial.print("IP Address: ");
+    Serial.println(deviceIP);
+
+    digitalWrite(WIFI_LED, LOW);  // ON (Active Low)
+
+    lcd.clear();
+    lcd.setCursor(0, 0); lcd.print("WiFi Connected!");
+    lcd.setCursor(0, 1); lcd.print(deviceIP);
+    delay(2000);
+  } else {
+    Serial.println("WiFi connection FAILED!");
+    Serial.println("Check SSID and password.");
+
+    digitalWrite(WIFI_LED, HIGH);  // OFF
+
+    lcd.clear();
+    lcd.setCursor(0, 0); lcd.print("WiFi FAILED!");
+    lcd.setCursor(0, 1); lcd.print("Check Config");
+    delay(3000);
+
+    // Still start server — user might connect later
+    deviceIP = "No Connection";
+  }
 }
 
-// ── REST API Routes ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// ── API ROUTES (JSON only, no HTML) ──────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
 void setupRoutes() {
-  // Main page — served in small chunks to avoid OOM
+
+  // ── Root — just returns device info ───────────────────────────────
   server.on("/", HTTP_GET, []() {
-    sendChunkedPage(server);
+    sendCORS(server);
+    server.send(200, "application/json", "{\"device\":\"BondPay Terminal\",\"version\":\"2.0\",\"status\":\"online\"}");
   });
 
-  // ── Captive Portal Detection Endpoints ────────────────────────────
-  // Android
-  server.on("/generate_204", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  server.on("/gen_204", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  // Apple
-  server.on("/hotspot-detect.html", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  server.on("/library/test/success.html", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  // Microsoft
-  server.on("/connecttest.txt", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  server.on("/ncsi.txt", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  server.on("/redirect", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  // Firefox
-  server.on("/canonical.html", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-  server.on("/success.txt", HTTP_GET, []() {
-    handleCaptivePortalDetect();
-  });
-
-  // ── 404 / Captive Portal catch-all ────────────────────────────────
+  // ── CORS preflight for all /api/* routes ──────────────────────────
   server.onNotFound([]() {
-    if (server.uri().startsWith("/api/")) {
-      server.send(404, "application/json", "{\"error\":\"Not Found\"}");
-    } else {
-      // Redirect everything else to root for captive portal
-      server.sendHeader("Location", "http://192.168.4.1/", true);
-      server.send(302, "text/plain", "");
+    if (server.method() == HTTP_OPTIONS) {
+      handleCORSPreflight(server);
+      return;
     }
+    sendCORS(server);
+    server.send(404, "application/json", "{\"error\":\"Not Found\"}");
   });
 
   // ── API: Status (lightweight — no flash I/O) ─────────────────────
@@ -139,6 +168,7 @@ void setupRoutes() {
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["uptime"] = millis();
     doc["pendingSyncCount"] = pendingSyncCount;
+    doc["ip"] = deviceIP;
 
     JsonObject evt = CREATE_NESTED_OBJECT(doc, "lastEvent");
     evt["processed"] = lastEvent.processed;
@@ -152,58 +182,64 @@ void setupRoutes() {
 
     String response;
     serializeJson(doc, response);
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.sendHeader("Cache-Control", "no-cache");
+    sendCORS(server);
     server.send(200, "application/json", response);
   });
 
   // Acknowledge processed event
   server.on("/api/status/acknowledge-event", HTTP_POST, []() {
     lastEvent.processed = true;
-    server.send(200, "text/plain", "OK");
+    sendCORS(server);
+    server.send(200, "application/json", "{\"ok\":true}");
   });
 
   // Sync client time
   server.on("/api/time", HTTP_POST, []() {
+    sendCORS(server);
     if (server.hasArg("epoch")) {
       timeSyncEpoch = server.arg("epoch").toInt();
       timeSyncMillis = millis();
-      server.send(200, "text/plain", "OK");
+      server.send(200, "application/json", "{\"ok\":true}");
     } else {
-      server.send(400, "text/plain", "Missing epoch");
+      server.send(400, "application/json", "{\"error\":\"Missing epoch\"}");
     }
   });
 
   // Get cards
   server.on("/api/cards", HTTP_GET, []() {
+    sendCORS(server);
     File f = LittleFS.open("/cards.json", "r");
     if (f) {
-      server.streamFile(f, "application/json");
+      String content = f.readString();
       f.close();
+      server.send(200, "application/json", content);
     } else {
       server.send(200, "application/json", "[]");
     }
   });
 
-  // Start card registration (enters ADD_CARD mode)
+  // Start card registration
   server.on("/api/cards/add", HTTP_POST, []() {
+    sendCORS(server);
     activeRegName = server.arg("name");
     activeRegUserId = server.arg("userId");
     activeRegBalance = server.arg("balance").toFloat();
     currentMode = MODE_ADD_CARD;
     readyDisplayed = false;
-    server.send(200, "text/plain", "OK");
+    server.send(200, "application/json", "{\"ok\":true}");
   });
 
   // Cancel registration
   server.on("/api/cards/cancel", HTTP_POST, []() {
+    sendCORS(server);
     currentMode = MODE_READY;
     readyDisplayed = false;
-    server.send(200, "text/plain", "OK");
+    server.send(200, "application/json", "{\"ok\":true}");
   });
 
   // Delete card
   server.on("/api/cards/delete", HTTP_POST, []() {
+    sendCORS(server);
     String uid = server.arg("uid");
     std::vector<Card> cards;
     if (loadCards(cards)) {
@@ -211,17 +247,18 @@ void setupRoutes() {
       if (idx != -1) {
         cards.erase(cards.begin() + idx);
         saveCards(cards);
-        server.send(200, "text/plain", "OK");
+        server.send(200, "application/json", "{\"ok\":true}");
       } else {
-        server.send(404, "text/plain", "Card Not Found");
+        server.send(404, "application/json", "{\"error\":\"Card Not Found\"}");
       }
     } else {
-      server.send(500, "text/plain", "DB Error");
+      server.send(500, "application/json", "{\"error\":\"DB Error\"}");
     }
   });
 
   // Update card balance
   server.on("/api/cards/update-balance", HTTP_POST, []() {
+    sendCORS(server);
     String uid = server.arg("uid");
     float balance = server.arg("balance").toFloat();
     std::vector<Card> cards;
@@ -230,36 +267,40 @@ void setupRoutes() {
       if (idx != -1) {
         cards[idx].balance = balance;
         saveCards(cards);
-        server.send(200, "text/plain", "OK");
+        server.send(200, "application/json", "{\"ok\":true}");
       } else {
-        server.send(404, "text/plain", "Card Not Found");
+        server.send(404, "application/json", "{\"error\":\"Card Not Found\"}");
       }
     } else {
-      server.send(500, "text/plain", "DB Error");
+      server.send(500, "application/json", "{\"error\":\"DB Error\"}");
     }
   });
 
-  // Start payment (enters PAYMENT mode)
+  // Start payment
   server.on("/api/payment/start", HTTP_POST, []() {
+    sendCORS(server);
     activeAmount = server.arg("amount").toFloat();
     currentMode = MODE_PAYMENT;
     readyDisplayed = false;
-    server.send(200, "text/plain", "OK");
+    server.send(200, "application/json", "{\"ok\":true}");
   });
 
   // Cancel payment
   server.on("/api/payment/cancel", HTTP_POST, []() {
+    sendCORS(server);
     currentMode = MODE_READY;
     readyDisplayed = false;
-    server.send(200, "text/plain", "OK");
+    server.send(200, "application/json", "{\"ok\":true}");
   });
 
   // Get transactions
   server.on("/api/transactions", HTTP_GET, []() {
+    sendCORS(server);
     File f = LittleFS.open("/transactions.json", "r");
     if (f) {
-      server.streamFile(f, "application/json");
+      String content = f.readString();
       f.close();
+      server.send(200, "application/json", content);
     } else {
       server.send(200, "application/json", "[]");
     }
@@ -267,19 +308,21 @@ void setupRoutes() {
 
   // Clear transactions
   server.on("/api/transactions/clear", HTTP_POST, []() {
+    sendCORS(server);
     File f = LittleFS.open("/transactions.json", "w");
     if (f) {
       f.print("[]");
       f.close();
       pendingSyncCount = 0;
-      server.send(200, "text/plain", "OK");
+      server.send(200, "application/json", "{\"ok\":true}");
     } else {
-      server.send(500, "text/plain", "DB Error");
+      server.send(500, "application/json", "{\"error\":\"DB Error\"}");
     }
   });
 
   // Sync transactions
   server.on("/api/transactions/sync", HTTP_POST, []() {
+    sendCORS(server);
     std::vector<Transaction> transactions;
     if (loadTransactions(transactions)) {
       for (auto &t : transactions) {
@@ -287,18 +330,20 @@ void setupRoutes() {
       }
       saveTransactions(transactions);
       pendingSyncCount = 0;
-      server.send(200, "text/plain", "OK");
+      server.send(200, "application/json", "{\"ok\":true}");
     } else {
-      server.send(500, "text/plain", "DB Error");
+      server.send(500, "application/json", "{\"error\":\"DB Error\"}");
     }
   });
 
   // Get settings
   server.on("/api/settings", HTTP_GET, []() {
+    sendCORS(server);
     File f = LittleFS.open("/settings.json", "r");
     if (f) {
-      server.streamFile(f, "application/json");
+      String content = f.readString();
       f.close();
+      server.send(200, "application/json", content);
     } else {
       server.send(200, "application/json", "{}");
     }
@@ -306,70 +351,24 @@ void setupRoutes() {
 
   // Save settings
   server.on("/api/settings", HTTP_POST, []() {
+    sendCORS(server);
     Settings settings;
     settings.stationName = server.arg("stationName");
     if (saveSettings(settings)) {
-      server.send(200, "text/plain", "OK");
+      server.send(200, "application/json", "{\"ok\":true}");
     } else {
-      server.send(500, "text/plain", "Save Fail");
+      server.send(500, "application/json", "{\"error\":\"Save Failed\"}");
     }
   });
 
   // Factory reset
   server.on("/api/settings/factory-reset", HTTP_POST, []() {
+    sendCORS(server);
     clearStorage();
-    server.send(200, "text/plain", "Resetting...");
+    server.send(200, "application/json", "{\"ok\":true,\"message\":\"Resetting...\"}");
     delay(500);
     ESP.restart();
   });
-}
-
-// ── WiFi AP Setup (Robust) ────────────────────────────────────────────
-void setupWiFiAP() {
-  // Step 1: Completely clean WiFi state
-  WiFi.persistent(false);       // Don't save WiFi config to flash
-  WiFi.disconnect(true);        // Disconnect any existing connections
-  WiFi.mode(WIFI_OFF);          // Turn off WiFi completely first
-  delay(100);                   // Let hardware settle
-
-  // Step 2: Set AP mode
-  WiFi.mode(WIFI_AP);
-  delay(100);                   // Let mode change take effect
-
-  // Step 3: Configure the AP IP address BEFORE starting AP
-  IPAddress apIP(192, 168, 4, 1);
-  IPAddress gateway(192, 168, 4, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.softAPConfig(apIP, gateway, subnet);
-  delay(50);
-
-  // Step 4: Start the Access Point (open, no password)
-  bool apStarted = WiFi.softAP("BondPay", "", 1, false, 4);
-  // Channel 1, not hidden, max 4 connections
-
-  if (apStarted) {
-    Serial.println("WiFi AP 'BondPay' started successfully!");
-    Serial.print("AP IP address: ");
-    Serial.println(WiFi.softAPIP());
-  } else {
-    Serial.println("ERROR: WiFi AP failed to start!");
-    // Retry once
-    delay(1000);
-    WiFi.softAP("BondPay", "", 1, false, 4);
-    Serial.print("Retry AP IP: ");
-    Serial.println(WiFi.softAPIP());
-  }
-
-  // Step 5: Wait for AP to be fully ready
-  delay(500);
-
-  // Step 6: Start DNS server for captive portal
-  // Resolve ALL domain names to our IP (captive portal)
-  dnsServer.setTTL(0);  // No caching — always redirect
-  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-  dnsServer.start(53, "*", apIP);
-
-  Serial.println("DNS captive portal started.");
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -380,9 +379,10 @@ void setup() {
   delay(100);
   Serial.println("\n\n==============================");
   Serial.println("  BondPay Terminal v2.0");
+  Serial.println("  API-Only Mode (WiFi STA)");
   Serial.println("==============================");
 
-  // Setup GPIO pins
+  // Setup GPIO
   pinMode(LED, OUTPUT);
   pinMode(BUZZER, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -390,7 +390,7 @@ void setup() {
 
   digitalWrite(BUZZER, LOW);
   digitalWrite(LED, LOW);
-  digitalWrite(WIFI_LED, HIGH);  // OFF initially (Active Low)
+  digitalWrite(WIFI_LED, HIGH);  // OFF initially
 
   // Initialize LCD
   Wire.begin();
@@ -400,22 +400,11 @@ void setup() {
 
   // Boot splash
   lcd.setCursor(0, 0); lcd.print("BondPay Station");
-  lcd.setCursor(0, 1); lcd.print("Starting...");
+  lcd.setCursor(0, 1); lcd.print("v2.0 Starting...");
   delay(1000);
 
-  // ── WiFi AP Setup ─────────────────────────────────────────────────
-  lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("Creating WiFi...");
-  lcd.setCursor(0, 1); lcd.print("Please wait");
-
-  setupWiFiAP();
-
-  digitalWrite(WIFI_LED, LOW);  // ON (Active Low) — WiFi is ready
-
-  lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("WiFi: BondPay");
-  lcd.setCursor(0, 1); lcd.print("IP: 192.168.4.1");
-  delay(2000);
+  // ── Connect to WiFi (STA mode) ────────────────────────────────────
+  connectToWiFi();
 
   // ── Storage Init ──────────────────────────────────────────────────
   lcd.clear();
@@ -426,10 +415,10 @@ void setup() {
     lcd.setCursor(0, 1); lcd.print("DB Error!");
     delay(2000);
   } else {
-    Serial.println("Storage initialized OK.");
+    Serial.println("Storage initialized.");
   }
 
-  // Cache pending sync count at boot
+  // Cache pending sync count
   {
     std::vector<Transaction> txns;
     if (loadTransactions(txns)) {
@@ -444,30 +433,39 @@ void setup() {
   initRFID();
   Serial.println("RFID reader initialized.");
 
-  // ── Web Server ────────────────────────────────────────────────────
+  // ── Start API Server ──────────────────────────────────────────────
   setupRoutes();
   server.begin();
-  Serial.println("HTTP server started on port 80.");
+
+  Serial.println("API server started on port 80.");
+  Serial.print("Access API at: http://");
+  Serial.println(deviceIP);
   Serial.print("Free heap: ");
   Serial.println(ESP.getFreeHeap());
 
   lcd.clear();
   lcd.setCursor(0, 0); lcd.print("BondPay Ready");
-  lcd.setCursor(0, 1); lcd.print("Tap Card");
-  delay(1000);
+  lcd.setCursor(0, 1); lcd.print(deviceIP);
 
-  Serial.println("Setup complete. Ready for connections.");
+  Serial.println("Setup complete.");
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // MAIN LOOP
 // ══════════════════════════════════════════════════════════════════════
 void loop() {
-  // Handle DNS for captive portal — MUST be called every loop
-  dnsServer.processNextRequest();
-
-  // Handle web server requests
+  // Handle API requests
   server.handleClient();
+
+  // Auto-reconnect WiFi if disconnected
+  if (WiFi.status() != WL_CONNECTED) {
+    static unsigned long lastReconnect = 0;
+    if (millis() - lastReconnect > 10000) {  // Try every 10 seconds
+      lastReconnect = millis();
+      Serial.println("WiFi lost. Reconnecting...");
+      WiFi.reconnect();
+    }
+  }
 
   // Handle D3 Reset Button (3 second hold = factory reset)
   if (digitalRead(BUTTON_PIN) == LOW) {
@@ -490,7 +488,7 @@ void loop() {
     lcd.clear();
     if (currentMode == MODE_READY) {
       lcd.setCursor(0, 0); lcd.print("Tap Card");
-      lcd.setCursor(0, 1); lcd.print("BondPay Ready");
+      lcd.setCursor(0, 1); lcd.print(deviceIP);
     } else if (currentMode == MODE_PAYMENT) {
       lcd.setCursor(0, 0); lcd.print("Waiting Card...");
       char amtStr[17];
@@ -518,7 +516,6 @@ void loop() {
 
   // ── Handle scan based on current mode ─────────────────────────────
   if (currentMode == MODE_READY) {
-    // Quick Balance Check
     std::vector<Card> cards;
     if (loadCards(cards)) {
       int idx = findCardIndex(cards, uid);
@@ -541,7 +538,6 @@ void loop() {
     lastScanTime = millis();
 
   } else if (currentMode == MODE_PAYMENT) {
-    // Process payment
     String errorMsg;
     float newBal = 0.0f;
     String name;
@@ -585,7 +581,6 @@ void loop() {
     lastScanTime = millis();
 
   } else if (currentMode == MODE_ADD_CARD) {
-    // Register card
     String errorMsg;
     bool success = registerCard(uid, activeRegName, activeRegUserId, activeRegBalance, errorMsg);
 

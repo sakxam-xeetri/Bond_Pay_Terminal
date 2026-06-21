@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BondPay Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #06080f;
+            --bg2: #0c1020;
+            --card: #111730;
+            --card-hover: #151d3a;
+            --bdr: rgba(255,255,255,0.06);
+            --bdr-h: rgba(255,255,255,0.12);
+            --pri: #00d2ff;
+            --pri-dim: rgba(0,210,255,0.12);
+            --pri-glow: rgba(0,210,255,0.25);
+            --prih: #00b4db;
+            --suc: #10b981;
+            --suc-dim: rgba(16,185,129,0.12);
+            --warn: #f59e0b;
+            --err: #ef4444;
+            --err-dim: rgba(239,68,68,0.12);
+            --txt: #f0f2f5;
+            --txt2: #c4c8d4;
+            --dim: #6b7280;
+            --glass: rgba(17,23,48,0.85);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--txt);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Connection Bar ──────────────────────────────────── */
+        .conn-bar {
+            background: var(--bg2);
+            border-bottom: 1px solid var(--bdr);
+            padding: 0.6rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .conn-bar label {
+            font-size: 0.82rem;
+            color: var(--dim);
+            font-weight: 500;
+        }
+        .conn-bar input {
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: 6px;
+            padding: 0.45rem 0.75rem;
+            color: var(--txt);
+            font-size: 0.88rem;
+            font-family: 'Inter', monospace;
+            width: 200px;
+            transition: border-color 0.2s;
+        }
+        .conn-bar input:focus {
+            outline: none;
+            border-color: var(--pri);
+        }
+        .conn-bar .conn-btn {
+            background: var(--pri);
+            color: #000;
+            border: none;
+            padding: 0.45rem 1rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: background 0.2s;
+        }
+        .conn-bar .conn-btn:hover { background: var(--prih); }
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            margin-left: auto;
+        }
+        .conn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--err);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .conn-dot.ok {
+            background: var(--suc);
+            box-shadow: 0 0 8px var(--suc);
+            animation: pulse 2s infinite;
+        }
+
+        /* ── Header ──────────────────────────────────────────── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--glass);
+            -webkit-backdrop-filter: blur(14px);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--bdr);
+            padding: 0.9rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--pri-dim);
+            border: 1px solid rgba(0,210,255,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--pri);
+        }
+        .logo-text {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            background: linear-gradient(135deg, #ffffff 30%, var(--pri) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header-clock {
+            font-size: 0.88rem;
+            color: var(--txt2);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Navigation Tabs ─────────────────────────────────── */
+        .nav-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg2);
+            padding: 6px 8px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--bdr);
+            -webkit-overflow-scrolling: touch;
+        }
+        .nav-tabs button {
+            background: none;
+            border: none;
+            color: var(--dim);
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-tabs button:hover {
+            color: var(--txt2);
+            background: rgba(255,255,255,0.03);
+        }
+        .nav-tabs button.active {
+            background: var(--pri-dim);
+            color: var(--pri);
+            border: 1px solid rgba(0,210,255,0.15);
+        }
+        .nav-tabs button svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* ── Content Panels ──────────────────────────────────── */
+        .panel {
+            display: none;
+            padding: 1.5rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            animation: fadeIn 0.3s ease;
+        }
+        .panel.active { display: block; }
+        .page-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+            letter-spacing: -0.3px;
+        }
+        .page-sub {
+            color: var(--dim);
+            font-size: 0.92rem;
+            margin-bottom: 1.8rem;
+        }
+
+        /* ── Stat Cards ──────────────────────────────────────── */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.8rem;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: var(--radius);
+            padding: 1.3rem 1.4rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+        .stat-card:hover {
+            border-color: var(--bdr-h);
+            transform: translateY(-1px);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--pri);
+        }
+        .stat-card.suc::before { background: var(--suc); }
+        .stat-card.err::before { background: var(--err); }
+        .stat-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 0.5rem;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        /* ── Form Cards ──────────────────────────────────────── */
+        .content-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+        @media (min-width: 700px) {
+            .content-grid.two-col {
+                grid-template-columns: 1.6fr 1fr;
+            }
+        }
+        .form-card {
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+        }
+        .form-card h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 1.2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--dim);
+            margin-bottom: 0.4rem;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(6,8,15,0.6);
+            border: 1px solid var(--bdr);
+            border-radius: var(--radius-sm);
+            padding: 0.7rem 0.9rem;
+            color: var(--txt);
+            font-size: 0.92rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--pri);
+            box-shadow: 0 0 0 3px var(--pri-dim);
+        }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.7rem 1.3rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--pri);
+            color: #000;
+        }
+        .btn-primary:hover { background: var(--prih); }
+        .btn-success {
+            background: var(--suc);
+            color: #fff;
+        }
+        .btn-danger {
+            background: var(--err);
+            color: #fff;
+        }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--bdr);
+            color: var(--txt);
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.04); }
+        .btn-full { width: 100%; }
+        .btn-sm {
+            padding: 0.35rem 0.7rem;
+            font-size: 0.78rem;
+        }
+
+        /* ── Tables ──────────────────────────────────────────── */
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--bdr);
+            border-radius: var(--radius);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        th {
+            background: rgba(255,255,255,0.02);
+            color: var(--dim);
+            padding: 0.8rem 1rem;
+            text-align: left;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            border-bottom: 1px solid var(--bdr);
+        }
+        td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--bdr);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.015); }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-ok {
+            background: var(--suc-dim);
+            color: var(--suc);
+        }
+        .badge-err {
+            background: var(--err-dim);
+            color: var(--err);
+        }
+
+        /* ── Overlay/Modal ───────────────────────────────────── */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(6,8,15,0.92);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .overlay.active { display: flex; }
+        .modal {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            max-width: 440px;
+            width: 100%;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+            animation: scaleIn 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        .scanner-ring {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+            border: 2px solid rgba(0,210,255,0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,210,255,0.04);
+        }
+        .scanner-ring::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border: 2px solid var(--pri);
+            border-radius: 50%;
+            animation: radar 1.5s linear infinite;
+        }
+        .scanner-ring svg {
+            width: 2.5rem;
+            height: 2.5rem;
+            stroke: var(--pri);
+            stroke-width: 1.5;
+            fill: none;
+        }
+        .result-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .result-icon.ok {
+            background: var(--suc-dim);
+            border: 2px solid var(--suc);
+        }
+        .result-icon.fail {
+            background: var(--err-dim);
+            border: 2px solid var(--err);
+        }
+
+        /* ── Search ──────────────────────────────────────────── */
+        .search-bar {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+        .search-bar input { flex: 1; }
+
+        /* ── Danger Zone ─────────────────────────────────────── */
+        .danger-zone {
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--bdr);
+            padding-top: 1.5rem;
+        }
+        .danger-zone h3 {
+            font-size: 0.92rem;
+            color: var(--err);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .danger-zone p {
+            font-size: 0.85rem;
+            color: var(--dim);
+            margin-bottom: 1rem;
+        }
+        .danger-actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        /* ── Info Grid ───────────────────────────────────────── */
+        .info-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.88rem;
+        }
+        .info-row span { color: var(--dim); }
+
+        /* ── Payment Center ──────────────────────────────────── */
+        .pay-center {
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .pay-icon {
+            width: 90px;
+            height: 90px;
+            margin: 1rem auto 1.5rem;
+            background: var(--pri-dim);
+            border: 2px solid rgba(0,210,255,0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pay-icon svg {
+            width: 2.5rem;
+            height: 2.5rem;
+            stroke: var(--pri);
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        /* ── Toast Notification ──────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: var(--radius);
+            padding: 0.8rem 1.5rem;
+            font-size: 0.88rem;
+            font-weight: 500;
+            z-index: 200;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.ok { border-left: 3px solid var(--suc); }
+        .toast.er { border-left: 3px solid var(--err); }
+
+        /* ── Animations ──────────────────────────────────────── */
+        @keyframes pulse {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.94); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes radar {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* ── Mobile ──────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .panel { padding: 1rem; }
+            .page-title { font-size: 1.35rem; }
+            .stat-value { font-size: 1.5rem; }
+            .conn-bar { flex-direction: column; align-items: stretch; }
+            .conn-bar input { width: 100%; }
+            .conn-status { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Connection Bar -->
+    <div class="conn-bar">
+        <label>ESP IP:</label>
+        <input type="text" id="esp-ip" value="192.168.1.100" placeholder="192.168.x.x">
+        <button class="conn-btn" onclick="connectESP()">Connect</button>
+        <div class="conn-status">
+            <div class="conn-dot" id="conn-dot"></div>
+            <span id="conn-text" style="color: var(--dim)">Disconnected</span>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <span class="logo-text">BondPay</span>
+        </div>
+        <span class="header-clock" id="header-clock">--:--:--</span>
+    </header>
+
+    <!-- Nav Tabs -->
+    <div class="nav-tabs" id="nav-tabs">
+        <button class="active" onclick="switchTab('dash')">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            Dashboard
+        </button>
+        <button onclick="switchTab('cards')">
+            <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Cards
+        </button>
+        <button onclick="switchTab('pay')">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Payment
+        </button>
+        <button onclick="switchTab('txn')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Logs
+        </button>
+        <button onclick="switchTab('set')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+        </button>
+    </div>
+
+    <!-- ═══════ DASHBOARD ═══════ -->
+    <div id="p-dash" class="panel active">
+        <h1 class="page-title" id="station-name">BondPay Station</h1>
+        <p class="page-sub">Offline terminal management dashboard</p>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-label">Active Cards</div>
+                <div class="stat-value" id="s-cards">0</div>
+            </div>
+            <div class="stat-card suc">
+                <div class="stat-label">Total Balance</div>
+                <div class="stat-value" id="s-balance">NPR 0</div>
+            </div>
+            <div class="stat-card err">
+                <div class="stat-label">Pending Sync</div>
+                <div class="stat-value" id="s-sync">0</div>
+            </div>
+        </div>
+
+        <div class="content-grid two-col">
+            <div class="form-card">
+                <h2>Recent Transactions</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Time</th><th>Name</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead>
+                        <tbody id="recent-list">
+                            <tr><td colspan="5" style="text-align:center;color:var(--dim)">No transactions</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="form-card" style="display:flex;flex-direction:column;gap:1rem">
+                <h2>Sync Queue</h2>
+                <p style="color:var(--dim);font-size:0.88rem;line-height:1.5">
+                    Push locally queued transactions for cloud synchronization.
+                </p>
+                <button class="btn btn-primary btn-full" onclick="syncTransactions()">Sync Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ CARDS ═══════ -->
+    <div id="p-cards" class="panel">
+        <h1 class="page-title">Card Management</h1>
+        <p class="page-sub">Add, remove, and manage local RFID cards</p>
+
+        <div class="content-grid two-col">
+            <div class="form-card">
+                <h2>Registered Cards</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Name</th><th>User ID</th><th>UID</th><th>Balance</th><th>Actions</th></tr></thead>
+                        <tbody id="cards-list">
+                            <tr><td colspan="5" style="text-align:center;color:var(--dim)">No cards</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="form-card">
+                <h2>Add New Card</h2>
+                <form onsubmit="registerCard(event)">
+                    <div class="form-group">
+                        <label class="form-label">Customer Name</label>
+                        <input type="text" class="form-input" id="reg-name" required placeholder="e.g. Sakshyam">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">User ID</label>
+                        <input type="text" class="form-input" id="reg-userid" required placeholder="e.g. BP001">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Balance (NPR)</label>
+                        <input type="number" class="form-input" id="reg-balance" required min="0" value="1000" step="0.01">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Register Card</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ PAYMENT ═══════ -->
+    <div id="p-pay" class="panel">
+        <h1 class="page-title">Payment</h1>
+        <p class="page-sub">Tap RFID card to deduct balance</p>
+
+        <div class="pay-center">
+            <div class="form-card" style="text-align:center">
+                <div class="pay-icon">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </div>
+                <h2 style="font-size:1.3rem;margin-bottom:0.4rem">Initiate Payment</h2>
+                <p style="color:var(--dim);font-size:0.9rem;margin-bottom:1.8rem">Enter amount, then tap card on terminal reader.</p>
+                <form onsubmit="startPayment(event)">
+                    <div class="form-group" style="text-align:left">
+                        <label class="form-label">Amount (NPR)</label>
+                        <input type="number" class="form-input" id="pay-amount" style="font-size:1.4rem;text-align:center;padding:0.9rem" required min="0.01" step="0.01" placeholder="0.00">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" style="height:3rem;font-size:1rem">Start Payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TRANSACTION LOG ═══════ -->
+    <div id="p-txn" class="panel">
+        <h1 class="page-title">Transaction Log</h1>
+        <p class="page-sub">Full audit history</p>
+
+        <div class="form-card">
+            <div class="search-bar">
+                <input type="text" class="form-input" id="txn-search" oninput="filterTransactions()" placeholder="Search by name, UID, status...">
+                <button class="btn btn-outline" onclick="loadData()">Refresh</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>#</th><th>Time</th><th>UID</th><th>Name</th><th>Amount</th><th>Prev Bal</th><th>Remaining</th><th>Status</th></tr></thead>
+                    <tbody id="txn-list">
+                        <tr><td colspan="8" style="text-align:center;color:var(--dim)">No records</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ SETTINGS ═══════ -->
+    <div id="p-set" class="panel">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-sub">Station configuration</p>
+
+        <div class="content-grid two-col">
+            <div class="form-card">
+                <h2>System Settings</h2>
+                <form onsubmit="saveSettings(event)">
+                    <div class="form-group">
+                        <label class="form-label">Station Name</label>
+                        <input type="text" class="form-input" id="setting-name" required value="BondPay Station 1">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+
+                <div class="danger-zone">
+                    <h3>Danger Zone</h3>
+                    <p>Once you purge data, the station database is permanently wiped.</p>
+                    <div class="danger-actions">
+                        <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
+                        <button class="btn btn-danger btn-outline" onclick="factoryReset()">Factory Reset</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-card">
+                <h2>Terminal Info</h2>
+                <div class="info-grid">
+                    <div class="info-row"><span>ESP IP:</span><strong id="info-ip">--</strong></div>
+                    <div class="info-row"><span>Free Memory:</span><strong id="info-heap">--</strong></div>
+                    <div class="info-row"><span>Uptime:</span><strong id="info-uptime">--</strong></div>
+                    <div class="info-row"><span>Mode:</span><strong id="info-mode">--</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay Modal -->
+    <div id="overlay" class="overlay">
+        <div class="modal" id="modal-content"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── State ──────────────────────────────────────────────
+        let API_BASE = '';
+        let connected = false;
+        let currentTab = 'dash';
+        let allTransactions = [];
+        let pollingTimer = null;
+
+        // ── Init ───────────────────────────────────────────────
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Try to restore last IP from localStorage
+            const savedIP = localStorage.getItem('bondpay_esp_ip');
+            if (savedIP) {
+                document.getElementById('esp-ip').value = savedIP;
+            }
+        };
+
+        function updateClock() {
+            document.getElementById('header-clock').innerText = new Date().toLocaleTimeString();
+        }
+
+        // ── Connection ─────────────────────────────────────────
+        function connectESP() {
+            const ip = document.getElementById('esp-ip').value.trim();
+            if (!ip) return toast('Enter ESP IP address', 'er');
+
+            API_BASE = 'http://' + ip;
+            localStorage.setItem('bondpay_esp_ip', ip);
+
+            document.getElementById('conn-text').innerText = 'Connecting...';
+            document.getElementById('conn-text').style.color = 'var(--warn)';
+
+            fetch(API_BASE + '/api/status', { signal: AbortSignal.timeout(5000) })
+                .then(r => r.json())
+                .then(data => {
+                    connected = true;
+                    document.getElementById('conn-dot').classList.add('ok');
+                    document.getElementById('conn-text').innerText = 'Connected';
+                    document.getElementById('conn-text').style.color = 'var(--suc)';
+
+                    toast('Connected to BondPay Terminal!', 'ok');
+
+                    // Sync time
+                    syncTime();
+
+                    // Load data
+                    loadData();
+
+                    // Start polling
+                    startPolling();
+
+                    // Auto refresh dashboard
+                    setInterval(function() {
+                        if (currentTab === 'dash' && connected) loadData();
+                    }, 6000);
+                })
+                .catch(err => {
+                    connected = false;
+                    document.getElementById('conn-dot').classList.remove('ok');
+                    document.getElementById('conn-text').innerText = 'Failed';
+                    document.getElementById('conn-text').style.color = 'var(--err)';
+                    toast('Cannot reach ESP at ' + ip, 'er');
+                });
+        }
+
+        function api(path, method) {
+            if (!connected) { toast('Not connected to ESP', 'er'); return Promise.reject('Not connected'); }
+            return fetch(API_BASE + path, {
+                method: method || 'GET',
+                signal: AbortSignal.timeout(8000)
+            });
+        }
+
+        // ── Time Sync ──────────────────────────────────────────
+        function syncTime() {
+            const epoch = Math.floor(Date.now() / 1000);
+            api('/api/time?epoch=' + epoch, 'POST').catch(function(){});
+        }
+
+        // ── Navigation ─────────────────────────────────────────
+        function switchTab(tab) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+
+            document.getElementById('p-' + tab).classList.add('active');
+
+            const tabMap = {dash:0, cards:1, pay:2, txn:3, set:4};
+            const btns = document.getElementById('nav-tabs').children;
+            if (tabMap[tab] !== undefined) btns[tabMap[tab]].classList.add('active');
+
+            currentTab = tab;
+            if (connected) loadData();
+        }
+
+        // ── Load Data ──────────────────────────────────────────
+        function loadData() {
+            if (!connected) return;
+
+            // Status
+            api('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('s-sync').innerText = data.pendingSyncCount || 0;
+                    document.getElementById('info-heap').innerText = Math.round(data.freeHeap / 1024) + ' KB';
+                    document.getElementById('info-ip').innerText = data.ip || '--';
+                    document.getElementById('info-mode').innerText = data.mode || 'READY';
+
+                    const s = data.uptime / 1000;
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    document.getElementById('info-uptime').innerText = h + 'h ' + m + 'm';
+                })
+                .catch(function(){});
+
+            // Cards
+            api('/api/cards')
+                .then(r => r.json())
+                .then(cards => {
+                    document.getElementById('s-cards').innerText = cards.length;
+                    let total = 0;
+                    cards.forEach(c => total += parseFloat(c.balance || 0));
+                    document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
+                    renderCards(cards);
+                })
+                .catch(function(){});
+
+            // Transactions
+            api('/api/transactions')
+                .then(r => r.json())
+                .then(txns => {
+                    allTransactions = txns;
+                    renderTransactions(txns);
+                    renderRecent(txns);
+                })
+                .catch(function(){});
+        }
+
+        // ── Escape HTML ────────────────────────────────────────
+        function esc(s) {
+            if (!s) return '';
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
+        }
+
+        // ── Render Cards ───────────────────────────────────────
+        function renderCards(cards) {
+            const el = document.getElementById('cards-list');
+            if (!cards.length) {
+                el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--dim)">No cards registered</td></tr>';
+                return;
+            }
+            el.innerHTML = cards.map(c => `
+                <tr>
+                    <td><strong>${esc(c.name)}</strong></td>
+                    <td><code>${esc(c.userId)}</code></td>
+                    <td><code style="font-size:0.8rem">${esc(c.uid)}</code></td>
+                    <td><strong>NPR ${parseFloat(c.balance).toFixed(2)}</strong></td>
+                    <td>
+                        <button class="btn btn-outline btn-sm" onclick="editBalance('${esc(c.uid)}', ${c.balance})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCard('${esc(c.uid)}')">Del</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ── Render Transactions ────────────────────────────────
+        function renderTransactions(txns) {
+            const el = document.getElementById('txn-list');
+            if (!txns.length) {
+                el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--dim)">No records</td></tr>';
+                return;
+            }
+            const sorted = [...txns].reverse();
+            el.innerHTML = sorted.map(t => {
+                const cls = t.status.toLowerCase().includes('success') ? 'badge-ok' : 'badge-err';
+                return `
+                    <tr>
+                        <td>#${t.id}</td>
+                        <td>${esc(t.timestamp)}</td>
+                        <td><code>${esc(t.uid)}</code></td>
+                        <td>${esc(t.name)}</td>
+                        <td><strong>${parseFloat(t.amount).toFixed(2)}</strong></td>
+                        <td>${parseFloat(t.prevBal).toFixed(2)}</td>
+                        <td>${parseFloat(t.remBal).toFixed(2)}</td>
+                        <td><span class="badge ${cls}">${esc(t.status)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ── Render Recent ──────────────────────────────────────
+        function renderRecent(txns) {
+            const el = document.getElementById('recent-list');
+            if (!txns.length) {
+                el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--dim)">No transactions</td></tr>';
+                return;
+            }
+            const recent = [...txns].reverse().slice(0, 5);
+            el.innerHTML = recent.map(t => {
+                const cls = t.status.toLowerCase().includes('success') ? 'badge-ok' : 'badge-err';
+                const time = t.timestamp ? (t.timestamp.split(' ')[1] || t.timestamp) : '';
+                return `
+                    <tr>
+                        <td>${esc(time)}</td>
+                        <td>${esc(t.name)}</td>
+                        <td><strong>${parseFloat(t.amount).toFixed(2)}</strong></td>
+                        <td>${parseFloat(t.remBal).toFixed(2)}</td>
+                        <td><span class="badge ${cls}">${esc(t.status)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ── Polling (for modal states) ─────────────────────────
+        function startPolling() {
+            if (pollingTimer) return;
+            pollingTimer = setInterval(function() {
+                if (!connected) return;
+                api('/api/status')
+                    .then(r => r.json())
+                    .then(data => handleState(data))
+                    .catch(function(){});
+            }, 1200);
+        }
+
+        function handleState(data) {
+            const overlay = document.getElementById('overlay');
+            const modal = document.getElementById('modal-content');
+
+            if (data.mode === 'PAYMENT') {
+                overlay.classList.add('active');
+                modal.innerHTML = `
+                    <div class="scanner-ring">
+                        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    </div>
+                    <h2 style="font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Waiting for Card</h2>
+                    <p style="color:var(--pri);font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">NPR ${parseFloat(data.activeAmount).toFixed(2)}</p>
+                    <p style="color:var(--dim);font-size:0.92rem;margin-bottom:2rem">Tap customer RFID card on terminal reader.</p>
+                    <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel Payment</button>
+                `;
+            } else if (data.mode === 'ADD_CARD') {
+                overlay.classList.add('active');
+                modal.innerHTML = `
+                    <div class="scanner-ring">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--pri)" stroke="none"/></svg>
+                    </div>
+                    <h2 style="font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Scan New Card</h2>
+                    <p style="color:var(--pri);font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">User ID: ${esc(data.activeUserId)}</p>
+                    <p style="color:var(--dim);font-size:0.92rem;margin-bottom:2rem">Tap unregistered RFID card on terminal.</p>
+                    <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel Registration</button>
+                `;
+            } else {
+                if (data.lastEvent && data.lastEvent.processed === false) {
+                    showResult(data.lastEvent);
+                } else if (!modal.querySelector('.result-screen')) {
+                    overlay.classList.remove('active');
+                }
+            }
+        }
+
+        function showResult(ev) {
+            const overlay = document.getElementById('overlay');
+            const modal = document.getElementById('modal-content');
+            overlay.classList.add('active');
+
+            const ok = ev.status.toLowerCase().includes('success');
+
+            if (ok) {
+                modal.innerHTML = `
+                    <div class="result-screen">
+                        <div class="result-icon ok">
+                            <svg style="width:2.5rem;height:2.5rem" viewBox="0 0 24 24" fill="none" stroke="var(--suc)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <h2 style="color:var(--suc);font-size:1.4rem;margin-bottom:0.4rem;font-weight:700">Success</h2>
+                        <p style="font-weight:600;font-size:1.1rem;margin-bottom:0.2rem">${esc(ev.name || '')}</p>
+                        <p style="color:var(--dim);font-size:0.85rem;margin-bottom:1.2rem">UID: <code>${esc(ev.uid)}</code></p>
+                        <div style="background:rgba(255,255,255,0.02);border:1px solid var(--bdr);padding:1rem;border-radius:8px;text-align:left;margin-bottom:1.2rem">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem"><span>Charged:</span><strong>NPR ${parseFloat(ev.amount||0).toFixed(2)}</strong></div>
+                            <div style="display:flex;justify-content:space-between"><span>Remaining:</span><strong>NPR ${parseFloat(ev.remBal||0).toFixed(2)}</strong></div>
+                        </div>
+                        <p style="color:var(--dim);font-size:0.78rem">Auto-closing in 3s...</p>
+                    </div>
+                `;
+            } else {
+                modal.innerHTML = `
+                    <div class="result-screen">
+                        <div class="result-icon fail">
+                            <svg style="width:2.5rem;height:2.5rem" viewBox="0 0 24 24" fill="none" stroke="var(--err)" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </div>
+                        <h2 style="color:var(--err);font-size:1.4rem;margin-bottom:0.5rem;font-weight:700">Failed</h2>
+                        <p style="font-weight:600;font-size:1.05rem;margin-bottom:1.5rem">${esc(ev.message || 'Transaction Declined')}</p>
+                        <button class="btn btn-outline btn-full" onclick="closeOverlay()">Close</button>
+                    </div>
+                `;
+            }
+
+            api('/api/status/acknowledge-event', 'POST').catch(function(){});
+            setTimeout(closeOverlay, 3500);
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').classList.remove('active');
+            loadData();
+        }
+
+        // ── Actions ────────────────────────────────────────────
+        function startPayment(e) {
+            e.preventDefault();
+            const amt = document.getElementById('pay-amount').value;
+            if (amt <= 0) return toast('Enter a valid amount', 'er');
+            api('/api/payment/start?amount=' + amt, 'POST').then(function() {
+                document.getElementById('pay-amount').value = '';
+                toast('Payment mode activated. Tap card on terminal.', 'ok');
+            }).catch(function(){});
+        }
+
+        function registerCard(e) {
+            e.preventDefault();
+            const n = document.getElementById('reg-name').value;
+            const u = document.getElementById('reg-userid').value;
+            const b = document.getElementById('reg-balance').value;
+            api('/api/cards/add?name=' + encodeURIComponent(n) + '&userId=' + encodeURIComponent(u) + '&balance=' + b, 'POST')
+                .then(function() {
+                    document.getElementById('reg-name').value = '';
+                    document.getElementById('reg-userid').value = '';
+                    document.getElementById('reg-balance').value = '1000';
+                    toast('Scan RFID card on terminal to register.', 'ok');
+                }).catch(function(){});
+        }
+
+        function cancelAction(type) {
+            const url = type === 'payment' ? '/api/payment/cancel' : '/api/cards/cancel';
+            api(url, 'POST').then(closeOverlay).catch(function(){});
+        }
+
+        function editBalance(uid, current) {
+            const val = prompt('New balance (NPR) for card ' + uid + ':', current);
+            if (val === null) return;
+            const num = parseFloat(val);
+            if (isNaN(num) || num < 0) return toast('Invalid balance', 'er');
+            api('/api/cards/update-balance?uid=' + uid + '&balance=' + num, 'POST')
+                .then(r => {
+                    if (r.ok) { toast('Balance updated', 'ok'); loadData(); }
+                    else toast('Update failed', 'er');
+                }).catch(function(){});
+        }
+
+        function deleteCard(uid) {
+            if (!confirm('Delete card ' + uid + '?')) return;
+            api('/api/cards/delete?uid=' + uid, 'POST')
+                .then(function() { toast('Card deleted', 'ok'); loadData(); })
+                .catch(function(){});
+        }
+
+        function syncTransactions() {
+            api('/api/transactions/sync', 'POST')
+                .then(function() { toast('Sync complete', 'ok'); loadData(); })
+                .catch(function(){});
+        }
+
+        function clearLogs() {
+            if (!confirm('Clear all transaction logs?')) return;
+            api('/api/transactions/clear', 'POST')
+                .then(function() { toast('Logs cleared', 'ok'); loadData(); })
+                .catch(function(){});
+        }
+
+        function factoryReset() {
+            if (!confirm('WARNING: This will delete ALL data. Are you sure?')) return;
+            api('/api/settings/factory-reset', 'POST')
+                .then(function() { toast('Factory reset complete. ESP restarting...', 'ok'); })
+                .catch(function(){});
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            const name = document.getElementById('setting-name').value;
+            api('/api/settings?stationName=' + encodeURIComponent(name), 'POST')
+                .then(function() {
+                    toast('Settings saved', 'ok');
+                    document.getElementById('station-name').innerText = name;
+                }).catch(function(){});
+        }
+
+        function filterTransactions() {
+            const q = document.getElementById('txn-search').value.toLowerCase();
+            const filtered = allTransactions.filter(t =>
+                (t.uid||'').toLowerCase().includes(q) ||
+                (t.name||'').toLowerCase().includes(q) ||
+                (t.status||'').toLowerCase().includes(q) ||
+                (t.timestamp||'').toLowerCase().includes(q)
+            );
+            renderTransactions(filtered);
+        }
+
+        // ── Toast ──────────────────────────────────────────────
+        function toast(msg, type) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.className = 'toast ' + (type || '') + ' show';
+            setTimeout(() => { el.classList.remove('show'); }, 3000);
+        }
+    </script>
+</body>
+</html>
