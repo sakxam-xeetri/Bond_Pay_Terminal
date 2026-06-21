@@ -89,6 +89,9 @@ inline void triggerFailureFeedback() {
   digitalWrite(LED, LOW);
 }
 
+// Cached sync counter — declared in main.ino
+extern int pendingSyncCount;
+
 // Log a transaction (keeping last 100 elements to avoid OOM)
 inline void logTransaction(const String &uid, const String &name, float amount, float prevBal, float remBal, const String &status) {
   std::vector<Transaction> transactions;
@@ -110,11 +113,14 @@ inline void logTransaction(const String &uid, const String &name, float amount, 
   
   transactions.push_back(t);
   
+  // Adjust cache: if oldest was unsynced and got erased, don't double-count
   if (transactions.size() > 100) {
+    if (!transactions.front().synced) pendingSyncCount--;
     transactions.erase(transactions.begin());
   }
   
   saveTransactions(transactions);
+  pendingSyncCount++;  // New transaction is always unsynced
 }
 
 // Process a payment

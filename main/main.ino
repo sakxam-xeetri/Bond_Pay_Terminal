@@ -61,6 +61,9 @@ const unsigned long COOLDOWN_DELAY = 1500;
 bool readyDisplayed = false;
 unsigned long buttonPressStart = 0;
 
+// Cached pending sync count — avoids loading all transactions on every poll
+int pendingSyncCount = 0;
+
 // Include our custom modules
 #include "storage.h"
 #include "rfid.h"
@@ -69,27 +72,23 @@ unsigned long buttonPressStart = 0;
 
 // Define REST API routes
 void setupRoutes() {
-  // Main page HTML
+  // Main page HTML — served in chunks to avoid OOM
   server.on("/", HTTP_GET, []() {
-    server.send_P(200, "text/html", MAIN_PAGE);
+    sendChunkedPage(server);
   });
 
   // Captive Portal Redirect / Page Not Found handler
   server.onNotFound([]() {
-    String host = server.hostHeader();
-    if (host.indexOf("192.168.4.1") != -1 || host.indexOf("bondpay.org") != -1) {
-      if (server.uri().startsWith("/api/")) {
-        server.send(404, "application/json", "{\"error\":\"Not Found\"}");
-      } else {
-        server.send_P(200, "text/html", MAIN_PAGE);
-      }
+    if (server.uri().startsWith("/api/")) {
+      server.send(404, "application/json", "{\"error\":\"Not Found\"}");
     } else {
+      // Redirect everything to root for captive portal
       server.sendHeader("Location", "http://192.168.4.1/", true);
       server.send(302, "text/plain", "");
     }
   });
 
-  // API Status & Heartbeat
+  // API Status & Heartbeat — lightweight, no flash I/O
   server.on("/api/status", HTTP_GET, []() {
     ALLOCATE_JSON_DOCUMENT(doc, 512);
     doc["mode"] = currentMode == MODE_READY ? "READY" : (currentMode == MODE_PAYMENT ? "PAYMENT" : "ADD_CARD");
@@ -97,14 +96,7 @@ void setupRoutes() {
     doc["activeUserId"] = activeRegUserId;
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["uptime"] = millis();
-
-    std::vector<Transaction> transactions;
-    loadTransactions(transactions);
-    int pending = 0;
-    for (const auto &t : transactions) {
-      if (!t.synced) pending++;
-    }
-    doc["pendingSyncCount"] = pending;
+    doc["pendingSyncCount"] = pendingSyncCount;  // Use cached value
 
     JsonObject evt = CREATE_NESTED_OBJECT(doc, "lastEvent");
     evt["processed"] = lastEvent.processed; 
@@ -237,6 +229,7 @@ void setupRoutes() {
     if (f) {
       f.print("[]");
       f.close();
+      pendingSyncCount = 0;
       server.send(200, "text/plain", "OK");
     } else {
       server.send(500, "text/plain", "DB Error");
@@ -251,6 +244,7 @@ void setupRoutes() {
         t.synced = true;
       }
       saveTransactions(transactions);
+      pendingSyncCount = 0;
       server.send(200, "text/plain", "OK");
     } else {
       server.send(500, "text/plain", "DB Error");
@@ -340,6 +334,17 @@ void setup() {
   // Initialize local file storage
   if (!initStorage()) {
     Serial.println("Storage Initialization Failed!");
+  }
+
+  // Cache pending sync count at boot
+  {
+    std::vector<Transaction> txns;
+    if (loadTransactions(txns)) {
+      pendingSyncCount = 0;
+      for (const auto &t : txns) {
+        if (!t.synced) pendingSyncCount++;
+      }
+    }
   }
 
   // Initialize MFRC522 RFID
