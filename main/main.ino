@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <DNSServer.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
@@ -19,6 +20,7 @@ extern const int LED = 15;     // D8 (GPIO15)
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 ESP8266WebServer server(80);
+DNSServer dnsServer;
 
 // Global settings & states
 enum StationMode {
@@ -70,6 +72,21 @@ void setupRoutes() {
   // Main page HTML
   server.on("/", HTTP_GET, []() {
     server.send_P(200, "text/html", MAIN_PAGE);
+  });
+
+  // Captive Portal Redirect / Page Not Found handler
+  server.onNotFound([]() {
+    String host = server.hostHeader();
+    if (host.indexOf("192.168.4.1") != -1 || host.indexOf("bondpay.org") != -1) {
+      if (server.uri().startsWith("/api/")) {
+        server.send(404, "application/json", "{\"error\":\"Not Found\"}");
+      } else {
+        server.send_P(200, "text/html", MAIN_PAGE);
+      }
+    } else {
+      server.sendHeader("Location", "http://192.168.4.1/", true);
+      server.send(302, "text/plain", "");
+    }
   });
 
   // API Status & Heartbeat
@@ -311,6 +328,7 @@ void setup() {
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
   WiFi.softAP("BondPay");
+  dnsServer.start(53, "*", local_IP);
 
   digitalWrite(WIFI_LED, LOW); // ON (Active Low)
 
@@ -336,6 +354,7 @@ void setup() {
 void loop() {
   // Handle web server requests
   server.handleClient();
+  dnsServer.processNextRequest();
 
   // Handle D3 Reset Button (3 seconds hold triggers factory reset)
   if (digitalRead(BUTTON_PIN) == LOW) {
