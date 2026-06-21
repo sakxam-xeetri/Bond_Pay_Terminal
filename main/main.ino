@@ -10,8 +10,8 @@
 // Pins mapping
 #define RST_PIN    255
 #define SS_PIN     2    // D4 (GPIO2)
-#define BUZZER     16   // D0 (GPIO16)
-#define LED        15   // D8 (GPIO15)
+extern const int BUZZER = 16;  // D0 (GPIO16)
+extern const int LED = 15;     // D8 (GPIO15)
 #define BUTTON_PIN 0    // D3 (GPIO0)
 #define WIFI_LED   LED_BUILTIN
 
@@ -89,8 +89,8 @@ void setupRoutes() {
     }
     doc["pendingSyncCount"] = pending;
 
-    JsonObject evt = doc.createNestedObject("lastEvent");
-    evt["processed"] = lastEvent.processed;
+    JsonObject evt = CREATE_NESTED_OBJECT(doc, "lastEvent");
+    evt["processed"] = lastEvent.processed; 
     evt["status"] = lastEvent.status;
     evt["uid"] = lastEvent.uid;
     evt["name"] = lastEvent.name;
@@ -305,8 +305,12 @@ void setup() {
   IPAddress local_IP(192, 168, 4, 1);
   IPAddress gateway(192, 168, 4, 1);
   IPAddress subnet(255, 255, 255, 0);
+  
+  WiFi.persistent(false);
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP("BondPay", "12345678");
+  WiFi.softAP("BondPay");
 
   digitalWrite(WIFI_LED, LOW); // ON (Active Low)
 

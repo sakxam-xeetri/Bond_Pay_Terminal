@@ -8,8 +8,12 @@
 // Version compatibility macros for ArduinoJson
 #if ARDUINOJSON_VERSION_MAJOR >= 7
   #define ALLOCATE_JSON_DOCUMENT(doc, size) JsonDocument doc
+  #define CREATE_NESTED_OBJECT(parent, key) parent[key].to<JsonObject>()
+  #define ADD_NESTED_OBJECT(parent) parent.add<JsonObject>()
 #else
   #define ALLOCATE_JSON_DOCUMENT(doc, size) DynamicJsonDocument doc(size)
+  #define CREATE_NESTED_OBJECT(parent, key) parent.createNestedObject(key)
+  #define ADD_NESTED_OBJECT(parent) parent.createNestedObject()
 #endif
 
 struct Card {
@@ -135,7 +139,7 @@ inline bool saveCards(const std::vector<Card> &cards) {
   ALLOCATE_JSON_DOCUMENT(doc, 8192);
   JsonArray arr = doc.to<JsonArray>();
   for (const auto &c : cards) {
-    JsonObject obj = arr.createNestedObject();
+    JsonObject obj = ADD_NESTED_OBJECT(arr);
     obj["uid"] = c.uid;
     obj["name"] = c.name;
     obj["userId"] = c.userId;
@@ -185,7 +189,7 @@ inline bool saveTransactions(const std::vector<Transaction> &transactions) {
   ALLOCATE_JSON_DOCUMENT(doc, 16384);
   JsonArray arr = doc.to<JsonArray>();
   for (const auto &t : transactions) {
-    JsonObject obj = arr.createNestedObject();
+    JsonObject obj = ADD_NESTED_OBJECT(arr);
     obj["id"] = t.id;
     obj["timestamp"] = t.timestamp;
     obj["uid"] = t.uid;
