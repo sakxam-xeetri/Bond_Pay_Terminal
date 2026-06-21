@@ -1,6 +1,17 @@
 #include <Arduino.h>
+#ifdef ESP32
+#include <WiFi.h>
+#include <WebServer.h>
+using WebServerClass = WebServer;
+#else
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+using WebServerClass = ESP8266WebServer;
+#endif
+
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 2
+#endif
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
@@ -25,7 +36,7 @@ extern const int LED = 15;     // D8 (GPIO15)
 // ── Hardware Instances ───────────────────────────────────────────────
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-ESP8266WebServer server(80);
+WebServerClass server(80);
 
 // ── Global State ─────────────────────────────────────────────────────
 enum StationMode {
@@ -183,6 +194,38 @@ void setupRoutes() {
     server.send(200, "application/json", response);
   });
 
+  // Combined API to get all state (Status, Cards, and Transactions) in one fast response
+  server.on("/api/all", HTTP_GET, []() {
+    sendCORS(server);
+    ALLOCATE_JSON_DOCUMENT(doc, 512);
+    doc["mode"] = currentMode == MODE_READY ? "READY" : (currentMode == MODE_PAYMENT ? "PAYMENT" : "ADD_CARD");
+    doc["activeAmount"] = activeAmount;
+    doc["activeUserId"] = activeRegUserId;
+    doc["freeHeap"] = ESP.getFreeHeap();
+    doc["uptime"] = millis();
+    doc["pendingSyncCount"] = pendingSyncCount;
+    doc["ip"] = deviceIP;
+
+    JsonObject evt = CREATE_NESTED_OBJECT(doc, "lastEvent");
+    evt["processed"] = lastEvent.processed;
+    evt["status"] = lastEvent.status;
+    evt["uid"] = lastEvent.uid;
+    evt["name"] = lastEvent.name;
+    evt["amount"] = lastEvent.amount;
+    evt["prevBal"] = lastEvent.prevBal;
+    evt["remBal"] = lastEvent.remBal;
+    evt["message"] = lastEvent.message;
+
+    String statusJson;
+    serializeJson(doc, statusJson);
+    
+    String response = "{\"status\":" + statusJson + 
+                      ",\"cards\":" + cachedCardsJson + 
+                      ",\"transactions\":" + cachedTransactionsJson + "}";
+                      
+    server.send(200, "application/json", response);
+  });
+
   // Acknowledge processed event
   server.on("/api/status/acknowledge-event", HTTP_POST, []() {
     lastEvent.processed = true;
@@ -202,17 +245,10 @@ void setupRoutes() {
     }
   });
 
-  // Get cards
+  // Get cards (Super-fast cached RAM response)
   server.on("/api/cards", HTTP_GET, []() {
     sendCORS(server);
-    File f = LittleFS.open("/cards.json", "r");
-    if (f) {
-      String content = f.readString();
-      f.close();
-      server.send(200, "application/json", content);
-    } else {
-      server.send(200, "application/json", "[]");
-    }
+    server.send(200, "application/json", cachedCardsJson);
   });
 
   // Start card registration
@@ -290,17 +326,10 @@ void setupRoutes() {
     server.send(200, "application/json", "{\"ok\":true}");
   });
 
-  // Get transactions
+  // Get transactions (Super-fast cached RAM response)
   server.on("/api/transactions", HTTP_GET, []() {
     sendCORS(server);
-    File f = LittleFS.open("/transactions.json", "r");
-    if (f) {
-      String content = f.readString();
-      f.close();
-      server.send(200, "application/json", content);
-    } else {
-      server.send(200, "application/json", "[]");
-    }
+    server.send(200, "application/json", cachedTransactionsJson);
   });
 
   // Clear transactions
@@ -333,17 +362,14 @@ void setupRoutes() {
     }
   });
 
-  // Get settings
+  // Get settings (Fast RAM response)
   server.on("/api/settings", HTTP_GET, []() {
     sendCORS(server);
-    File f = LittleFS.open("/settings.json", "r");
-    if (f) {
-      String content = f.readString();
-      f.close();
-      server.send(200, "application/json", content);
-    } else {
-      server.send(200, "application/json", "{}");
-    }
+    ALLOCATE_JSON_DOCUMENT(doc, 256);
+    doc["stationName"] = ramSettings.stationName;
+    String content;
+    serializeJson(doc, content);
+    server.send(200, "application/json", content);
   });
 
   // Save settings

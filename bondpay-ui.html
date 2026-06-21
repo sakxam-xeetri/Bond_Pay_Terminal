@@ -868,31 +868,72 @@
             animation: modalIn 0.2s ease;
         }
 
-        .scanner-ring {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
+        /* ── Premium Pulse Animation for Payment ───────────────── */
+        .pulse-ring-container {
             position: relative;
-            border: 2px solid var(--gray-200);
+            width: 120px;
+            height: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin: 0 auto 20px;
         }
 
-        .scanner-ring::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border: 1px solid var(--black);
-            animation: scan-pulse 1.5s ease infinite;
+        .scanner-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--black);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            z-index: 5;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
-        .scanner-ring svg {
-            width: 28px;
-            height: 28px;
-            stroke: var(--black);
+        .scanner-icon svg {
+            width: 32px;
+            height: 32px;
+            stroke: var(--white);
             stroke-width: 1.5;
             fill: none;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 1px solid var(--black);
+            background-color: rgba(0, 0, 0, 0.03);
+            opacity: 0.6;
+            animation: pulseRing 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+        }
+
+        .pulse-ring.delay-1 { animation-delay: 0.6s; }
+        .pulse-ring.delay-2 { animation-delay: 1.2s; }
+
+        @keyframes pulseRing {
+            0% { transform: scale(0.6); opacity: 0.8; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        .payment-details-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--gray-50);
+            border: 1px solid var(--border);
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .payment-details-badge strong {
+            color: var(--black);
+            font-weight: 700;
         }
 
         .result-icon {
@@ -1452,7 +1493,7 @@
                     <div class="conn-row">
                         <div class="form-group">
                             <label class="form-label">ESP IP Address</label>
-                            <input type="text" class="form-input" id="esp-ip" value="192.168.1.100" placeholder="192.168.x.x">
+                            <input type="text" class="form-input" id="esp-ip" value="192.168.4.1" placeholder="192.168.x.x">
                         </div>
                         <button class="btn btn-black" onclick="connectESP()" style="margin-bottom:0;height:38px;">Connect</button>
                     </div>
@@ -1721,31 +1762,12 @@
                                 setSyncStatus('Loading Data', 'Fetching cards, transactions and status');
                             }
 
-                            // Load all data with promises
-                            const p1 = fetchWithTimeout(API_BASE + '/api/cards', {}, 10000)
+                            // Load all data with a single fast combined request
+                            return fetchWithTimeout(API_BASE + '/api/all', {}, 10000)
                                 .then(r => r.json())
-                                .then(cards => {
-                                    document.getElementById('s-cards').innerText = cards.length;
-                                    let total = 0;
-                                    cards.forEach(c => total += parseFloat(c.balance || 0));
-                                    document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
-                                    renderCardsSidebar(cards);
-                                })
-                                .catch(function() {});
-
-                            const p2 = fetchWithTimeout(API_BASE + '/api/transactions', {}, 10000)
-                                .then(r => r.json())
-                                .then(txns => {
-                                    allTransactions = txns;
-                                    document.getElementById('s-txn-count').innerText = txns.length;
-                                    renderTransactions(txns);
-                                    renderRecent(txns);
-                                })
-                                .catch(function() {});
-
-                            const p3 = fetchWithTimeout(API_BASE + '/api/status', {}, 5000)
-                                .then(r => r.json())
-                                .then(d => {
+                                .then(data => {
+                                    // Status
+                                    const d = data.status;
                                     document.getElementById('s-sync').innerText = d.pendingSyncCount || 0;
                                     document.getElementById('info-heap').innerText = Math.round(d.freeHeap / 1024) + ' KB';
                                     document.getElementById('info-ip').innerText = d.ip || '--';
@@ -1754,10 +1776,23 @@
                                     const h = Math.floor(s / 3600);
                                     const m = Math.floor((s % 3600) / 60);
                                     document.getElementById('info-uptime').innerText = h + 'h ' + m + 'm';
+
+                                    // Cards
+                                    const cards = data.cards;
+                                    document.getElementById('s-cards').innerText = cards.length;
+                                    let total = 0;
+                                    cards.forEach(c => total += parseFloat(c.balance || 0));
+                                    document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
+                                    renderCardsSidebar(cards);
+
+                                    // Transactions
+                                    const txns = data.transactions;
+                                    allTransactions = txns;
+                                    document.getElementById('s-txn-count').innerText = txns.length;
+                                    renderTransactions(txns);
+                                    renderRecent(txns);
                                 })
                                 .catch(function() {});
-
-                            return Promise.all([p1, p2, p3]);
                         })
                         .then(function() {
                             if (showingSyncOverlay) {
@@ -1896,35 +1931,31 @@
         function loadData() {
             if (!connected) return;
 
-            api('/api/status')
+            api('/api/all')
                 .then(r => r.json())
                 .then(data => {
-                    document.getElementById('s-sync').innerText = data.pendingSyncCount || 0;
-                    document.getElementById('info-heap').innerText = Math.round(data.freeHeap / 1024) + ' KB';
-                    document.getElementById('info-ip').innerText = data.ip || '--';
-                    document.getElementById('info-mode').innerText = data.mode || 'READY';
+                    // Update status
+                    const d = data.status;
+                    document.getElementById('s-sync').innerText = d.pendingSyncCount || 0;
+                    document.getElementById('info-heap').innerText = Math.round(d.freeHeap / 1024) + ' KB';
+                    document.getElementById('info-ip').innerText = d.ip || '--';
+                    document.getElementById('info-mode').innerText = d.mode || 'READY';
 
-                    const s = data.uptime / 1000;
+                    const s = d.uptime / 1000;
                     const h = Math.floor(s / 3600);
                     const m = Math.floor((s % 3600) / 60);
                     document.getElementById('info-uptime').innerText = h + 'h ' + m + 'm';
-                })
-                .catch(function () { });
 
-            api('/api/cards')
-                .then(r => r.json())
-                .then(cards => {
+                    // Update cards
+                    const cards = data.cards;
                     document.getElementById('s-cards').innerText = cards.length;
                     let total = 0;
                     cards.forEach(c => total += parseFloat(c.balance || 0));
                     document.getElementById('s-balance').innerText = 'NPR ' + total.toFixed(2);
                     renderCardsSidebar(cards);
-                })
-                .catch(function () { });
 
-            api('/api/transactions')
-                .then(r => r.json())
-                .then(txns => {
+                    // Update transactions
+                    const txns = data.transactions;
                     allTransactions = txns;
                     document.getElementById('s-txn-count').innerText = txns.length;
                     renderTransactions(txns);
@@ -2021,7 +2052,7 @@
                     .then(r => r.json())
                     .then(data => handleState(data))
                     .catch(function () { });
-            }, 1200);
+            }, 450);
         }
 
         function handleState(data) {
@@ -2031,24 +2062,44 @@
             if (data.mode === 'PAYMENT') {
                 overlay.classList.add('active');
                 modal.innerHTML = `
-                    <div class="scanner-ring">
-                        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    <div class="payment-active-state">
+                        <div class="pulse-ring-container">
+                            <div class="pulse-ring"></div>
+                            <div class="pulse-ring delay-1"></div>
+                            <div class="pulse-ring delay-2"></div>
+                            <div class="scanner-icon">
+                                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                            </div>
+                        </div>
+                        <h2 style="font-size:1.25rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Waiting for Card</h2>
+                        <div class="payment-details-badge" style="margin-bottom:16px;">
+                            <span>Amount: </span>
+                            <strong>NPR ${parseFloat(data.activeAmount).toFixed(2)}</strong>
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:24px">Tap customer RFID card on terminal reader.</p>
+                        <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel</button>
                     </div>
-                    <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Waiting for Card</h2>
-                    <p style="font-size:1.4rem;font-weight:800;margin-bottom:4px;letter-spacing:-0.5px">NPR ${parseFloat(data.activeAmount).toFixed(2)}</p>
-                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">Tap customer RFID card on terminal reader.</p>
-                    <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel</button>
                 `;
             } else if (data.mode === 'ADD_CARD') {
                 overlay.classList.add('active');
                 modal.innerHTML = `
-                    <div class="scanner-ring">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--black)" stroke="none"/></svg>
+                    <div class="payment-active-state">
+                        <div class="pulse-ring-container">
+                            <div class="pulse-ring"></div>
+                            <div class="pulse-ring delay-1"></div>
+                            <div class="pulse-ring delay-2"></div>
+                            <div class="scanner-icon">
+                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor" stroke="none"/></svg>
+                            </div>
+                        </div>
+                        <h2 style="font-size:1.25rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Scan New Card</h2>
+                        <div class="payment-details-badge" style="margin-bottom:16px;">
+                            <span>User ID: </span>
+                            <strong>${esc(data.activeUserId)}</strong>
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:24px">Tap unregistered RFID card on terminal.</p>
+                        <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel</button>
                     </div>
-                    <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Scan New Card</h2>
-                    <p style="font-size:1rem;font-weight:700;margin-bottom:4px">User ID: ${esc(data.activeUserId)}</p>
-                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">Tap unregistered RFID card on terminal.</p>
-                    <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel</button>
                 `;
             } else {
                 if (data.lastEvent && data.lastEvent.processed === false) {
@@ -2112,6 +2163,30 @@
             api('/api/payment/start?amount=' + amt, 'POST').then(function () {
                 document.getElementById('pay-amount').value = '';
                 toast('Payment mode activated — tap card on terminal', 'ok');
+                
+                // Show scanner modal immediately
+                const overlay = document.getElementById('overlay');
+                const modal = document.getElementById('modal-content');
+                overlay.classList.add('active');
+                modal.innerHTML = `
+                    <div class="payment-active-state">
+                        <div class="pulse-ring-container">
+                            <div class="pulse-ring"></div>
+                            <div class="pulse-ring delay-1"></div>
+                            <div class="pulse-ring delay-2"></div>
+                            <div class="scanner-icon">
+                                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                            </div>
+                        </div>
+                        <h2 style="font-size:1.25rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Waiting for Card</h2>
+                        <div class="payment-details-badge" style="margin-bottom:16px;">
+                            <span>Amount: </span>
+                            <strong>NPR ${parseFloat(amt).toFixed(2)}</strong>
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:24px">Tap customer RFID card on terminal reader.</p>
+                        <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel</button>
+                    </div>
+                `;
             }).catch(function () { });
         }
 
@@ -2127,6 +2202,30 @@
                     document.getElementById('reg-balance').value = '1000';
                     toggleAddCard();
                     toast('Scan RFID card on terminal to register', 'ok');
+                    
+                    // Show scanner modal immediately
+                    const overlay = document.getElementById('overlay');
+                    const modal = document.getElementById('modal-content');
+                    overlay.classList.add('active');
+                    modal.innerHTML = `
+                        <div class="payment-active-state">
+                            <div class="pulse-ring-container">
+                                <div class="pulse-ring"></div>
+                                <div class="pulse-ring delay-1"></div>
+                                <div class="pulse-ring delay-2"></div>
+                                <div class="scanner-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor" stroke="none"/></svg>
+                                </div>
+                            </div>
+                            <h2 style="font-size:1.25rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Scan New Card</h2>
+                            <div class="payment-details-badge" style="margin-bottom:16px;">
+                                <span>User ID: </span>
+                                <strong>${esc(u)}</strong>
+                            </div>
+                            <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:24px">Tap unregistered RFID card on terminal.</p>
+                            <button class="btn btn-outline" onclick="cancelAction('cards')">Cancel</button>
+                        </div>
+                    `;
                 }).catch(function () { });
         }
 

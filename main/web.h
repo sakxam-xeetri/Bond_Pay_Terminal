@@ -8,7 +8,7 @@
 // The web UI HTML file is separate and communicates via HTTP API.
 // This header is kept for any shared web utilities if needed.
 
-inline void sendCORS(ESP8266WebServer &srv) {
+inline void sendCORS(WebServerClass &srv) {
   srv.sendHeader("Access-Control-Allow-Origin", "*");
   srv.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   srv.sendHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -17,7 +17,7 @@ inline void sendCORS(ESP8266WebServer &srv) {
 }
 
 // Handle CORS preflight OPTIONS requests
-inline void handleCORSPreflight(ESP8266WebServer &srv) {
+inline void handleCORSPreflight(WebServerClass &srv) {
   sendCORS(srv);
   srv.send(204, "", "");
 }

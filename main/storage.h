@@ -39,6 +39,105 @@ struct Settings {
   String stationName;
 };
 
+// RAM cache variables
+inline std::vector<Card> ramCards;
+inline std::vector<Transaction> ramTransactions;
+inline Settings ramSettings;
+inline String cachedCardsJson = "[]";
+inline String cachedTransactionsJson = "[]";
+
+inline void updateCachedCardsJson() {
+  ALLOCATE_JSON_DOCUMENT(doc, 8192);
+  JsonArray arr = doc.to<JsonArray>();
+  for (const auto &c : ramCards) {
+    JsonObject obj = ADD_NESTED_OBJECT(arr);
+    obj["uid"] = c.uid;
+    obj["name"] = c.name;
+    obj["userId"] = c.userId;
+    obj["balance"] = c.balance;
+  }
+  cachedCardsJson = "";
+  serializeJson(doc, cachedCardsJson);
+}
+
+inline void updateCachedTransactionsJson() {
+  ALLOCATE_JSON_DOCUMENT(doc, 16384);
+  JsonArray arr = doc.to<JsonArray>();
+  for (const auto &t : ramTransactions) {
+    JsonObject obj = ADD_NESTED_OBJECT(arr);
+    obj["id"] = t.id;
+    obj["timestamp"] = t.timestamp;
+    obj["uid"] = t.uid;
+    obj["name"] = t.name;
+    obj["amount"] = t.amount;
+    obj["prevBal"] = t.prevBal;
+    obj["remBal"] = t.remBal;
+    obj["status"] = t.status;
+    obj["synced"] = t.synced;
+  }
+  cachedTransactionsJson = "";
+  serializeJson(doc, cachedTransactionsJson);
+}
+
+inline bool loadCardsFromDisk() {
+  ramCards.clear();
+  File f = LittleFS.open("/cards.json", "r");
+  if (!f) return false;
+  
+  ALLOCATE_JSON_DOCUMENT(doc, 8192);
+  DeserializationError err = deserializeJson(doc, f);
+  f.close();
+  
+  if (err) {
+    Serial.println("loadCardsFromDisk: JSON Deserialization error!");
+    return false;
+  }
+  
+  JsonArray arr = doc.as<JsonArray>();
+  for (JsonObject obj : arr) {
+    Card c;
+    c.uid = obj["uid"].as<String>();
+    c.name = obj["name"].as<String>();
+    c.userId = obj["userId"].as<String>();
+    c.balance = obj["balance"].as<float>();
+    ramCards.push_back(c);
+  }
+  updateCachedCardsJson();
+  return true;
+}
+
+inline bool loadTransactionsFromDisk() {
+  ramTransactions.clear();
+  File f = LittleFS.open("/transactions.json", "r");
+  if (!f) return false;
+  
+  ALLOCATE_JSON_DOCUMENT(doc, 16384);
+  DeserializationError err = deserializeJson(doc, f);
+  f.close();
+  
+  if (err) {
+    Serial.println("loadTransactionsFromDisk: JSON Deserialization error!");
+    return false;
+  }
+  
+  JsonArray arr = doc.as<JsonArray>();
+  for (JsonObject obj : arr) {
+    Transaction t;
+    t.id = obj["id"].as<int>();
+    t.timestamp = obj["timestamp"].as<String>();
+    t.uid = obj["uid"].as<String>();
+    t.name = obj["name"].as<String>();
+    t.amount = obj["amount"].as<float>();
+    t.prevBal = obj["prevBal"].as<float>();
+    t.remBal = obj["remBal"].as<float>();
+    t.status = obj["status"].as<String>();
+    t.synced = obj["synced"].as<bool>();
+    ramTransactions.push_back(t);
+  }
+  updateCachedTransactionsJson();
+  return true;
+}
+
 inline bool initStorage() {
   if (!LittleFS.begin()) {
     Serial.println("LittleFS Mount Failed! Formatting...");
@@ -74,27 +173,33 @@ inline bool initStorage() {
     }
   }
   
+  // Load data into RAM
+  loadCardsFromDisk();
+  loadTransactionsFromDisk();
+  
+  File f = LittleFS.open("/settings.json", "r");
+  if (f) {
+    ALLOCATE_JSON_DOCUMENT(doc, 256);
+    if (deserializeJson(doc, f) == DeserializationError::Ok) {
+      ramSettings.stationName = doc["stationName"] | "BondPay Station 1";
+    } else {
+      ramSettings.stationName = "BondPay Station 1";
+    }
+    f.close();
+  } else {
+    ramSettings.stationName = "BondPay Station 1";
+  }
+  
   return true;
 }
 
 inline bool loadSettings(Settings &settings) {
-  File f = LittleFS.open("/settings.json", "r");
-  if (!f) return false;
-  
-  ALLOCATE_JSON_DOCUMENT(doc, 256);
-  DeserializationError err = deserializeJson(doc, f);
-  f.close();
-  
-  if (err) {
-    settings.stationName = "BondPay Station 1";
-    return false;
-  }
-  
-  settings.stationName = doc["stationName"] | "BondPay Station 1";
+  settings = ramSettings;
   return true;
 }
 
 inline bool saveSettings(const Settings &settings) {
+  ramSettings = settings;
   File f = LittleFS.open("/settings.json", "w");
   if (!f) return false;
   
@@ -107,32 +212,14 @@ inline bool saveSettings(const Settings &settings) {
 }
 
 inline bool loadCards(std::vector<Card> &cards) {
-  cards.clear();
-  File f = LittleFS.open("/cards.json", "r");
-  if (!f) return false;
-  
-  ALLOCATE_JSON_DOCUMENT(doc, 8192);
-  DeserializationError err = deserializeJson(doc, f);
-  f.close();
-  
-  if (err) {
-    Serial.println("loadCards: JSON Deserialization error!");
-    return false;
-  }
-  
-  JsonArray arr = doc.as<JsonArray>();
-  for (JsonObject obj : arr) {
-    Card c;
-    c.uid = obj["uid"].as<String>();
-    c.name = obj["name"].as<String>();
-    c.userId = obj["userId"].as<String>();
-    c.balance = obj["balance"].as<float>();
-    cards.push_back(c);
-  }
+  cards = ramCards;
   return true;
 }
 
 inline bool saveCards(const std::vector<Card> &cards) {
+  ramCards = cards;
+  updateCachedCardsJson();
+  
   File f = LittleFS.open("/cards.json", "w");
   if (!f) return false;
   
@@ -152,37 +239,14 @@ inline bool saveCards(const std::vector<Card> &cards) {
 }
 
 inline bool loadTransactions(std::vector<Transaction> &transactions) {
-  transactions.clear();
-  File f = LittleFS.open("/transactions.json", "r");
-  if (!f) return false;
-  
-  ALLOCATE_JSON_DOCUMENT(doc, 16384);
-  DeserializationError err = deserializeJson(doc, f);
-  f.close();
-  
-  if (err) {
-    Serial.println("loadTransactions: JSON Deserialization error!");
-    return false;
-  }
-  
-  JsonArray arr = doc.as<JsonArray>();
-  for (JsonObject obj : arr) {
-    Transaction t;
-    t.id = obj["id"].as<int>();
-    t.timestamp = obj["timestamp"].as<String>();
-    t.uid = obj["uid"].as<String>();
-    t.name = obj["name"].as<String>();
-    t.amount = obj["amount"].as<float>();
-    t.prevBal = obj["prevBal"].as<float>();
-    t.remBal = obj["remBal"].as<float>();
-    t.status = obj["status"].as<String>();
-    t.synced = obj["synced"].as<bool>();
-    transactions.push_back(t);
-  }
+  transactions = ramTransactions;
   return true;
 }
 
 inline bool saveTransactions(const std::vector<Transaction> &transactions) {
+  ramTransactions = transactions;
+  updateCachedTransactionsJson();
+  
   File f = LittleFS.open("/transactions.json", "w");
   if (!f) return false;
   
@@ -210,6 +274,11 @@ inline void clearStorage() {
   LittleFS.remove("/cards.json");
   LittleFS.remove("/transactions.json");
   LittleFS.remove("/settings.json");
+  ramCards.clear();
+  ramTransactions.clear();
+  ramSettings.stationName = "BondPay Station 1";
+  updateCachedCardsJson();
+  updateCachedTransactionsJson();
   initStorage();
 }
 
