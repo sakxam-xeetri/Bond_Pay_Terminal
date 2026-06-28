@@ -999,6 +999,74 @@
             to { opacity: 0; }
         }
 
+        /* ── Payment Steps Tracker ─────────────────────────────── */
+        .payment-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            text-align: left;
+            margin: 24px auto;
+            max-width: 280px;
+            border-left: 2px solid var(--gray-100);
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .p-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .p-step::before {
+            content: '';
+            position: absolute;
+            left: -27px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid var(--gray-300);
+            transition: all 0.3s ease;
+        }
+
+        .p-step.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .p-step.active::before {
+            border-color: var(--black);
+            background: var(--black);
+            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+            animation: pulse-dot-active 1.5s infinite;
+        }
+
+        .p-step.done {
+            color: var(--text-primary);
+        }
+
+        .p-step.done::before {
+            border-color: var(--black);
+            background: var(--black);
+        }
+
+        .p-step-text {
+            flex: 1;
+        }
+
+        @keyframes pulse-dot-active {
+            0%, 100% { transform: translateY(-50%) scale(1); opacity: 1; }
+            50% { transform: translateY(-50%) scale(1.2); opacity: 0.6; }
+        }
+
         /* ── Connection Sync Overlay ────────────────────────────── */
         .sync-overlay {
             position: fixed;
@@ -1452,7 +1520,7 @@
                     <div class="conn-row">
                         <div class="form-group">
                             <label class="form-label">ESP IP Address</label>
-                            <input type="text" class="form-input" id="esp-ip" value="192.168.1.100" placeholder="192.168.x.x">
+                            <input type="text" class="form-input" id="esp-ip" value="" placeholder="192.168.x.x">
                         </div>
                         <button class="btn btn-black" onclick="connectESP()" style="margin-bottom:0;height:38px;">Connect</button>
                     </div>
@@ -1529,7 +1597,9 @@
         <div class="sync-spinner" id="sync-spinner"></div>
         <div class="sync-status-text" id="sync-status">Connecting to Terminal</div>
         <div class="sync-sub-text" id="sync-sub">Please wait while we sync with your hardware</div>
-        <div class="sync-steps">
+        
+        <!-- Steps List (wrapper added for toggling visibility) -->
+        <div class="sync-steps" id="sync-steps-list">
             <div class="sync-step" id="step-connect">
                 <div class="sync-step-icon"></div>
                 <span>Connecting to ESP</span>
@@ -1546,6 +1616,21 @@
                 <div class="sync-step-icon"></div>
                 <span>Terminal Ready</span>
             </div>
+        </div>
+
+        <!-- IP Entry State (visible when no IP is saved/configured) -->
+        <div id="sync-ip-form-container" style="display:none; flex-direction:column; align-items:center; width:100%; max-width:320px; text-align:center;">
+            <p class="sync-sub-text" style="margin-bottom:20px; font-size:0.85rem; padding:0 16px;">Enter the IP address of your BondPay Terminal to connect. Make sure both devices are on the same WiFi network.</p>
+            <div class="form-group" style="width:100%; margin-bottom:16px; padding:0 16px;">
+                <input type="text" class="form-input" id="sync-esp-ip" placeholder="e.g. 192.168.1.100" style="text-align:center; font-size:1.1rem; height:45px; width:100%;">
+            </div>
+            <button class="btn btn-black btn-full" onclick="connectFromSyncOverlay()" style="height:45px; font-weight:600; width:calc(100% - 32px);">Connect Terminal</button>
+        </div>
+
+        <!-- Connection Fail Actions -->
+        <div id="sync-fail-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-top:24px; width:100%; max-width:320px;">
+            <button class="btn btn-black btn-full" onclick="showSyncIPConfig()" style="height:45px; font-weight:600; width:calc(100% - 32px);">Change IP Address</button>
+            <button class="btn btn-outline btn-full" onclick="hideSyncOverlay()" style="height:45px; font-weight:600; width:calc(100% - 32px);">Use Dashboard Offline</button>
         </div>
     </div>
 
@@ -1564,6 +1649,7 @@
         let currentTab = 'dash';
         let allTransactions = [];
         let pollingTimer = null;
+        let currentModalState = ''; // Tracking active modal popup state to prevent polling flickering
 
         // ── Init ───────────────────────────────────────────────
         let sameOriginMode = false;  // true when served directly from ESP
@@ -1587,6 +1673,11 @@
             document.getElementById('sync-status').innerText = 'Connecting to Terminal';
             document.getElementById('sync-sub').innerText = 'Please wait while we sync with your hardware';
             document.getElementById('sync-spinner').style.display = '';
+
+            // Ensure configuration form and failure actions are hidden by default
+            document.getElementById('sync-ip-form-container').style.display = 'none';
+            document.getElementById('sync-fail-actions').style.display = 'none';
+            document.getElementById('sync-steps-list').style.display = '';
         }
 
         function setSyncStep(stepId, state) {
@@ -1614,6 +1705,56 @@
             showingSyncOverlay = false;
         }
 
+        function showSyncIPConfig() {
+            showSyncOverlay();
+            // Hide the default loading state elements
+            document.getElementById('sync-spinner').style.display = 'none';
+            document.getElementById('sync-status').style.display = 'none';
+            document.getElementById('sync-sub').style.display = 'none';
+            document.getElementById('sync-steps-list').style.display = 'none';
+            document.getElementById('sync-fail-actions').style.display = 'none';
+            
+            // Show IP entry form
+            document.getElementById('sync-ip-form-container').style.display = 'flex';
+            
+            // Focus the input field
+            setTimeout(() => {
+                const input = document.getElementById('sync-esp-ip');
+                if (input) input.focus();
+            }, 100);
+        }
+
+        function connectFromSyncOverlay() {
+            const ip = document.getElementById('sync-esp-ip').value.trim();
+            if (!ip) {
+                toast('Enter ESP IP address', 'er');
+                return;
+            }
+            // Populate main setting
+            document.getElementById('esp-ip').value = ip;
+            
+            // Save to localStorage
+            localStorage.setItem('bondpay_esp_ip', ip);
+            
+            // Hide IP form and restore loading views
+            document.getElementById('sync-ip-form-container').style.display = 'none';
+            document.getElementById('sync-spinner').style.display = '';
+            document.getElementById('sync-status').style.display = '';
+            document.getElementById('sync-sub').style.display = '';
+            document.getElementById('sync-steps-list').style.display = '';
+            
+            // Reset steps styling on overlay since we are starting a fresh attempt
+            ['step-connect','step-time','step-data','step-ready'].forEach(id => {
+                const s = document.getElementById(id);
+                s.className = 'sync-step';
+            });
+            setSyncStep('step-connect', 'active');
+
+            // Attempt connection
+            autoConnectAttempts = 0;
+            attemptConnect(false);
+        }
+
         window.onload = function () {
             updateClock();
             setInterval(updateClock, 1000);
@@ -1637,13 +1778,22 @@
                 const savedIP = localStorage.getItem('bondpay_esp_ip');
                 if (savedIP) {
                     document.getElementById('esp-ip').value = savedIP;
-                }
-                // Auto-connect on page load if we have an IP
-                const ip = document.getElementById('esp-ip').value.trim();
-                if (ip) {
-                    console.log('[BondPay] Auto-connecting to saved IP: ' + ip);
+                    console.log('[BondPay] Auto-connecting to saved IP: ' + savedIP);
                     attemptConnect(false);
+                } else {
+                    document.getElementById('esp-ip').value = '';
+                    showSyncIPConfig();
                 }
+            }
+
+            // Keyboard shortcut to hit Enter inside sync IP overlay
+            const syncIpInput = document.getElementById('sync-esp-ip');
+            if (syncIpInput) {
+                syncIpInput.addEventListener('keyup', function (event) {
+                    if (event.key === 'Enter') {
+                        connectFromSyncOverlay();
+                    }
+                });
             }
         };
 
@@ -1816,8 +1966,18 @@
                             setSyncStep('step-connect', 'error');
                             setSyncStatus('Connection Failed', 'Could not reach ESP — check WiFi and IP address');
                             document.getElementById('sync-spinner').style.display = 'none';
-                            // Auto-dismiss after 3 seconds
-                            setTimeout(hideSyncOverlay, 3000);
+                            
+                            // If opened locally, show retry/change IP actions instead of auto-dismissing
+                            const isLocal = window.location.protocol === 'file:' || 
+                                            window.location.hostname === 'localhost' || 
+                                            window.location.hostname === '127.0.0.1' || 
+                                            window.location.hostname === '';
+                            if (isLocal) {
+                                document.getElementById('sync-fail-actions').style.display = 'flex';
+                            } else {
+                                // Auto-dismiss after 3 seconds
+                                setTimeout(hideSyncOverlay, 3000);
+                            }
                         }
 
                         if (!silent) toast('Connection failed: ' + err.message, 'er');
@@ -2029,17 +2189,60 @@
             const modal = document.getElementById('modal-content');
 
             if (data.mode === 'PAYMENT') {
+                if (currentModalState === 'PAYMENT' || currentModalState === 'PROCESSING') {
+                    // Already in payment/authorization state, do not interrupt active steps/animations
+                    return;
+                }
+                currentModalState = 'PAYMENT';
                 overlay.classList.add('active');
                 modal.innerHTML = `
-                    <div class="scanner-ring">
-                        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    <div style="margin-bottom:24px; text-align:center;">
+                        <h2 style="font-size:1.15rem;font-weight:800;letter-spacing:-0.3px;margin-bottom:6px;">Terminal Payment</h2>
+                        <div style="font-size:1.8rem;font-weight:900;letter-spacing:-0.5px;margin-bottom:2px;">NPR ${parseFloat(data.activeAmount).toFixed(2)}</div>
+                        <p style="color:var(--text-muted);font-size:0.75rem;">Step-by-step transaction details</p>
                     </div>
-                    <h2 style="font-size:1.2rem;margin-bottom:4px;font-weight:800;letter-spacing:-0.3px">Waiting for Card</h2>
-                    <p style="font-size:1.4rem;font-weight:800;margin-bottom:4px;letter-spacing:-0.5px">NPR ${parseFloat(data.activeAmount).toFixed(2)}</p>
-                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">Tap customer RFID card on terminal reader.</p>
-                    <button class="btn btn-outline" onclick="cancelAction('payment')">Cancel</button>
+
+                    <!-- Steps Timeline -->
+                    <div class="payment-steps">
+                        <div class="p-step active" id="p-step-1">
+                            <div class="p-step-text">Initializing Terminal Connection</div>
+                        </div>
+                        <div class="p-step" id="p-step-2">
+                            <div class="p-step-text">Waiting for Card Tap</div>
+                        </div>
+                        <div class="p-step" id="p-step-3">
+                            <div class="p-step-text">Authorizing Transaction</div>
+                        </div>
+                        <div class="p-step" id="p-step-4">
+                            <div class="p-step-text">Finished</div>
+                        </div>
+                    </div>
+
+                    <!-- Pulse Scanner Ring -->
+                    <div class="scanner-container" id="scanner-visual" style="display:none; margin-bottom:24px;">
+                        <div class="scanner-ring" style="width:64px; height:64px; margin: 0 auto;">
+                            <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                        </div>
+                        <p style="color:var(--text-muted);font-size:0.75rem;margin-top:10px;">Tap RFID card on terminal</p>
+                    </div>
+
+                    <button class="btn btn-outline" id="payment-cancel-btn" onclick="cancelAction('payment')" style="width:100%;">Cancel</button>
                 `;
+
+                // Animate Step 1 (Initializing) -> Step 2 (Waiting for Card Tap)
+                setTimeout(() => {
+                    if (currentModalState !== 'PAYMENT') return;
+                    const s1 = document.getElementById('p-step-1');
+                    const s2 = document.getElementById('p-step-2');
+                    const visual = document.getElementById('scanner-visual');
+                    if (s1) s1.className = 'p-step done';
+                    if (s2) s2.className = 'p-step active';
+                    if (visual) visual.style.display = 'block';
+                }, 800);
+
             } else if (data.mode === 'ADD_CARD') {
+                if (currentModalState === 'ADD_CARD') return;
+                currentModalState = 'ADD_CARD';
                 overlay.classList.add('active');
                 modal.innerHTML = `
                     <div class="scanner-ring">
@@ -2052,14 +2255,47 @@
                 `;
             } else {
                 if (data.lastEvent && data.lastEvent.processed === false) {
-                    showResult(data.lastEvent);
-                } else if (!modal.querySelector('.result-screen')) {
-                    overlay.classList.remove('active');
+                    if (currentModalState === 'PROCESSING' || currentModalState === 'RESULT') {
+                        // Already handling transaction logic, don't double-trigger
+                        return;
+                    }
+                    
+                    // Transition to step 3 (Authorizing) first with animation delay
+                    currentModalState = 'PROCESSING';
+                    overlay.classList.add('active');
+
+                    const s1 = document.getElementById('p-step-1');
+                    const s2 = document.getElementById('p-step-2');
+                    const s3 = document.getElementById('p-step-3');
+                    const visual = document.getElementById('scanner-visual');
+                    const cancelBtn = document.getElementById('payment-cancel-btn');
+
+                    if (s1 && s2 && s3) {
+                        s1.className = 'p-step done';
+                        s2.className = 'p-step done';
+                        s3.className = 'p-step active';
+                        if (visual) visual.style.display = 'none';
+                        if (cancelBtn) cancelBtn.style.display = 'none';
+
+                        // Wait 1.5 seconds for premium processing transition
+                        setTimeout(() => {
+                            showResult(data.lastEvent);
+                        }, 1500);
+                    } else {
+                        // Fallback: show result immediately if modal wasn't initialized
+                        showResult(data.lastEvent);
+                    }
+                } else if (!modal.querySelector('.result-screen') && currentModalState !== 'PROCESSING') {
+                    if (currentModalState !== '') {
+                        overlay.classList.remove('active');
+                        currentModalState = '';
+                    }
                 }
             }
         }
 
         function showResult(ev) {
+            currentModalState = 'RESULT';
             const overlay = document.getElementById('overlay');
             const modal = document.getElementById('modal-content');
             overlay.classList.add('active');
@@ -2088,7 +2324,7 @@
                         <div class="result-icon fail">
                             <svg style="width:28px;height:28px" viewBox="0 0 24 24" fill="none" stroke="var(--white)" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </div>
-                        <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:800;letter-spacing:-0.3px">Failed</h2>
+                        <h2 style="font-size:1.2rem;margin-8px;font-weight:800;letter-spacing:-0.3px">Failed</h2>
                         <p style="font-weight:500;font-size:0.92rem;margin-bottom:20px;color:var(--text-secondary)">${esc(ev.message || 'Transaction Declined')}</p>
                         <button class="btn btn-black btn-full" onclick="closeOverlay()">Close</button>
                     </div>
@@ -2101,6 +2337,7 @@
 
         function closeOverlay() {
             document.getElementById('overlay').classList.remove('active');
+            currentModalState = '';
             loadData();
         }
 

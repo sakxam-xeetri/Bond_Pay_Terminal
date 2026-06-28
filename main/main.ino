@@ -125,7 +125,6 @@ void connectToWiFi() {
     Serial.println(deviceIP);
 
     digitalWrite(WIFI_LED, LOW);  // ON (Active Low)
-
     lcd.clear();
     lcd.setCursor(0, 0); lcd.print("WiFi Connected!");
     lcd.setCursor(0, 1); lcd.print(deviceIP);
